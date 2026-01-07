@@ -1,0 +1,2667 @@
+--- a/src/lib/types.ts
++++ b/src/lib/types.ts
+@@ -12,7 +12,10 @@
+ // ============================================================================
+ 
+ export const CreateScriptSchema = z.object({
+-  text: z.string().min(1, "Script text is required").max(100000, "Script text too long"),
++  text: z
++    .string()
++    .min(1, "Script text is required")
++    .max(100000, "Script text too long"),
+ });
+ 
+ export const CreateJobSchema = z.object({
+@@ -20,7 +23,7 @@
+ });
+ 
+ // ============================================================================
+-// Truth Contract Error Schema
++// Truth Contract (Laugh Lab V1) — Core Enums
+ // ============================================================================
+ 
+ export const AnalysisStage = z.enum([
+@@ -28,64 +31,75 @@
+   "prompt_a",
+   "prompt_a_validation",
+   "prompt_b",
+-  "prompt_b_validation",
+   "persistence",
+ ]);
+ 
+-export const ErrorCode = z.enum([
+-  "INPUT_VALIDATION_FAILED",
+-  "PROMPT_A_FAILED",
+-  "PROMPT_A_VALIDATION_FAILED",
+-  "PROMPT_B_FAILED",
+-  "PROMPT_B_VALIDATION_FAILED",
+-  "PROMPT_B_INVALID_ISSUE_REF",
+-  "OUTPUT_VALIDATION_FAILED",
+-  "PERSISTENCE_FAILED",
+-  "ANALYSIS_FAILED",
+-  "INTERNAL_ERROR",
+-]);
++export const DepthLevel = z.enum(["pro", "studio"]);
++export const MetricsVerbosity = z.enum(["interpretive", "macro"]);
++export const RevisionGuidanceLevel = z.enum(["time_boxed", "multi_pass"]);
++
++export const InferredFormat = z.enum(["scene", "half_hour", "hour", "feature"]);
++export const TierCompatibility = z.enum([
++  "ok",
++  "too_short",
++  "too_long",
++  "unsupported_format",
++]);
++
++export const LocationType = z.enum(["line_range", "timecode_range", "scene"]);
++export const Severity = z.enum(["minor", "moderate", "major"]);
++
++export const PeakReasonTag = z.enum([
++  "setup_payoff",
++  "surprise",
++  "character",
++  "escalation",
++  "button",
++  "other",
++]);
++
++export const RetentionRiskLevel = z.enum(["low", "medium", "high"]);
++export const RetentionIndicatorType = z.enum([
++  "gap_cluster",
++  "late_soft_end",
++  "repeat_escalation",
++  "low_surprise_run",
++]);
++
++export const IssueType = z.enum([
++  "pacing_soft_spot",
++  "escalation_repeat",
++  "surprise_decay",
++  "button_weakness",
++  "character_underutilization",
++  "other",
++]);
++
++// ============================================================================
++// Truth Contract Error Schema
++// ============================================================================
+ 
+ export const ErrorObjectSchema = z.object({
+-  code: ErrorCode,
++  code: z.string().min(1),
+   message: z.string(),
+   stage: AnalysisStage,
+   retryable: z.boolean(),
+   request_id: z.string(),
+-  details: z.record(z.unknown()).optional(),
+-});
+-
+-// ============================================================================
+-// Truth Contract Tier Config Schema
+-// ============================================================================
+-
+-export const DepthLevel = z.enum(["basic", "standard", "deep"]);
+-export const MetricsVerbosity = z.enum(["minimal", "standard", "detailed"]);
+-export const RevisionGuidanceLevel = z.enum(["light", "moderate", "comprehensive"]);
++  details: z.record(z.unknown()),
++});
++
++// ============================================================================
++// Truth Contract Tier Config + Script Fingerprint
++// ============================================================================
+ 
+ export const TierConfigSchema = z.object({
+   depth_level: DepthLevel,
+-  max_issues: z.number().int().positive(),
++  max_issues: z.number().int().nonnegative(),
+   punch_up_moments: z.number().int().nonnegative(),
+-  options_per_moment: z.number().int().positive(),
++  options_per_moment: z.number().int().nonnegative(),
+   metrics_verbosity: MetricsVerbosity,
+   revision_guidance_level: RevisionGuidanceLevel,
+ });
+-
+-// ============================================================================
+-// Truth Contract Script Fingerprint Schema
+-// ============================================================================
+-
+-export const InferredFormat = z.enum([
+-  "standup",
+-  "sketch",
+-  "screenplay",
+-  "sitcom",
+-  "late_night",
+-  "roast",
+-  "unknown",
+-]);
+-
+-export const TierCompatibility = z.enum(["free", "pro", "enterprise"]);
+ 
+ export const ScriptFingerprintSchema = z.object({
+   input_hash: z.string(),
+@@ -95,10 +109,6 @@
+   tier_compatibility: TierCompatibility,
+ });
+ 
+-// ============================================================================
+-// Truth Contract Prompt A Schema
+-// ============================================================================
+-
+ export const ClassificationSchema = z.object({
+   inferred_format: InferredFormat,
+   word_count: z.number().int().nonnegative(),
+@@ -106,54 +116,54 @@
+   tier_compatibility: TierCompatibility,
+ });
+ 
++// ============================================================================
++// Truth Contract Prompt A Schema
++// ============================================================================
++
++export const IssueLocationSchema = z.object({
++  type: LocationType,
++  value: z.string(),
++});
++
+ export const PeakMomentSchema = z.object({
+   moment_id: z.string(),
+-  location: z.string(),
+-  description: z.string(),
+-  strength: z.number().min(0).max(100),
++  label: z.string(),
++  location: IssueLocationSchema,
++  reason_tag: PeakReasonTag,
++});
++
++export const CharacterBalanceEntrySchema = z.object({
++  name: z.string(),
++  joke_share: z.number().min(0).max(1),
++  line_share: z.number().min(0).max(1),
++  underutilized: z.boolean(),
+ });
+ 
+ export const CharacterBalanceSchema = z.object({
+-  character_name: z.string(),
+-  line_percentage: z.number().min(0).max(100),
+-  joke_percentage: z.number().min(0).max(100),
++  ensemble_balance: z.number().min(0).max(1),
++  dominant_character: z.string(),
++  characters: z.array(CharacterBalanceEntrySchema),
++});
++
++export const RetentionRiskIndicatorSchema = z.object({
++  indicator_id: z.string(),
++  type: RetentionIndicatorType,
++  location: IssueLocationSchema,
++  severity: Severity,
+ });
+ 
+ export const RetentionRiskSchema = z.object({
+-  risk_level: z.enum(["low", "medium", "high"]),
+-  factors: z.array(z.string()),
++  overall_risk: RetentionRiskLevel,
++  indicators: z.array(RetentionRiskIndicatorSchema),
+ });
+ 
+ export const MetricsSchema = z.object({
+   overall_score: z.number().min(0).max(100),
+   lpm_intermediate_plus: z.number().nonnegative(),
+-  lines_per_joke: z.number().positive(),
++  lines_per_joke: z.number().nonnegative(),
+   peak_moments: z.array(PeakMomentSchema),
+-  character_balance: z.array(CharacterBalanceSchema),
++  character_balance: CharacterBalanceSchema,
+   retention_risk: RetentionRiskSchema,
+-});
+-
+-export const IssueType = z.enum([
+-  "timing",
+-  "structure",
+-  "clarity",
+-  "setup",
+-  "punchline",
+-  "callback",
+-  "premise",
+-  "tag",
+-  "act_out",
+-  "reference",
+-  "other",
+-]);
+-
+-export const IssueSeverity = z.enum(["low", "medium", "high"]);
+-
+-export const IssueLocationType = z.enum(["line_range", "character_range", "section"]);
+-
+-export const IssueLocationSchema = z.object({
+-  type: IssueLocationType,
+-  value: z.string(),
+ });
+ 
+ export const IssueEvidenceSchema = z.object({
+@@ -165,7 +175,7 @@
+   issue_id: z.string(),
+   type: IssueType,
+   location: IssueLocationSchema,
+-  severity: IssueSeverity,
++  severity: Severity,
+   tags: z.array(z.string()),
+   evidence: IssueEvidenceSchema,
+ });
+@@ -185,12 +195,6 @@
+   notes: z.string().optional(),
+ });
+ 
+-export const StrengthToPreserveSchema = z.object({
+-  strength_id: z.string(),
+-  description: z.string(),
+-  location: z.string().optional(),
+-});
+-
+ export const ConcreteFixSchema = z.object({
+   title: z.string(),
+   steps: z.array(z.string()),
+@@ -220,9 +224,15 @@
+   options: z.array(PunchUpOptionSchema),
+ });
+ 
++export const RevisionPlanStepSchema = z.object({
++  step: z.string(),
++  timebox_minutes: z.number().int().positive().optional(),
++  pass: z.string().optional(),
++});
++
+ export const RevisionPlanSchema = z.object({
+-  mode: z.enum(["quick_pass", "deep_revision", "rewrite"]),
+-  steps: z.array(z.string()),
++  mode: z.enum(["time_boxed", "multi_pass"]),
++  steps: z.array(RevisionPlanStepSchema),
+ });
+ 
+ export const HowToReviseSchema = z.object({
+@@ -231,7 +241,7 @@
+ 
+ export const PromptBSectionsSchema = z.object({
+   comedy_metrics_snapshot: ComedyMetricsSnapshotSchema,
+-  strengths_to_preserve: z.array(StrengthToPreserveSchema),
++  strengths_to_preserve: z.array(z.string()),
+   whats_getting_in_the_way: z.array(WhatsGettingInTheWaySchema),
+   recommended_fixes: z.array(RecommendedFixSchema),
+   punch_up_suggestions: z.array(PunchUpSuggestionSchema),
+@@ -243,7 +253,7 @@
+ });
+ 
+ // ============================================================================
+-// Truth Contract Run Metadata Schema
++// Final Output Schema
+ // ============================================================================
+ 
+ export const RunMetadataSchema = z.object({
+@@ -252,10 +262,6 @@
+   tier_config: TierConfigSchema,
+   script_fingerprint: ScriptFingerprintSchema,
+ });
+-
+-// ============================================================================
+-// Truth Contract Final Output Schema (schema_version 1.0.0)
+-// ============================================================================
+ 
+ export const FinalOutputSchema = z.object({
+   schema_version: z.literal("1.0.0"),
+@@ -272,45 +278,44 @@
+ 
+ export type ErrorObject = z.infer<typeof ErrorObjectSchema>;
+ export type AnalysisStageType = z.infer<typeof AnalysisStage>;
+-export type ErrorCodeType = z.infer<typeof ErrorCode>;
+ 
+ export type TierConfig = z.infer<typeof TierConfigSchema>;
+-export type ScriptFingerprint = z.infer<typeof ScriptFingerprintSchema>;
++export type DepthLevelType = z.infer<typeof DepthLevel>;
++export type MetricsVerbosityType = z.infer<typeof MetricsVerbosity>;
++export type RevisionGuidanceLevelType = z.infer<typeof RevisionGuidanceLevel>;
++
+ export type InferredFormatType = z.infer<typeof InferredFormat>;
+ export type TierCompatibilityType = z.infer<typeof TierCompatibility>;
+ 
++export type ScriptFingerprint = z.infer<typeof ScriptFingerprintSchema>;
+ export type Classification = z.infer<typeof ClassificationSchema>;
+-export type Metrics = z.infer<typeof MetricsSchema>;
++export type IssueLocation = z.infer<typeof IssueLocationSchema>;
++
+ export type PeakMoment = z.infer<typeof PeakMomentSchema>;
+ export type CharacterBalance = z.infer<typeof CharacterBalanceSchema>;
+ export type RetentionRisk = z.infer<typeof RetentionRiskSchema>;
+ export type IssueCandidate = z.infer<typeof IssueCandidateSchema>;
+-export type IssueLocation = z.infer<typeof IssueLocationSchema>;
+-export type IssueEvidence = z.infer<typeof IssueEvidenceSchema>;
+ 
+ export type PromptAOutput = z.infer<typeof PromptAOutputSchema>;
+ export type PromptBOutput = z.infer<typeof PromptBOutputSchema>;
+ export type PromptBSections = z.infer<typeof PromptBSectionsSchema>;
++
+ export type ComedyMetricsSnapshot = z.infer<typeof ComedyMetricsSnapshotSchema>;
+-export type StrengthToPreserve = z.infer<typeof StrengthToPreserveSchema>;
+ export type WhatsGettingInTheWay = z.infer<typeof WhatsGettingInTheWaySchema>;
+ export type ConcreteFix = z.infer<typeof ConcreteFixSchema>;
+ export type RecommendedFix = z.infer<typeof RecommendedFixSchema>;
+ export type PunchUpSuggestion = z.infer<typeof PunchUpSuggestionSchema>;
+ export type PunchUpOption = z.infer<typeof PunchUpOptionSchema>;
+ export type RevisionPlan = z.infer<typeof RevisionPlanSchema>;
+-export type HowToRevise = z.infer<typeof HowToReviseSchema>;
+-
+-export type RunMetadata = z.infer<typeof RunMetadataSchema>;
++
+ export type FinalOutput = z.infer<typeof FinalOutputSchema>;
+ 
+-export type CreateScriptInput = z.infer<typeof CreateScriptSchema>;
+-export type CreateJobInput = z.infer<typeof CreateJobSchema>;
+-
+-// Job status type matching Prisma enum
++// ============================================================================
++// API Response Types (minimal; Slice-0 stubbed user)
++// ============================================================================
++
+ export type JobStatus = "pending" | "running" | "completed" | "failed";
+ 
+-// API Response types
+ export interface ScriptResponse {
+   id: string;
+   user_id: string;
+@@ -343,7 +348,6 @@
+   created_at: string;
+ }
+ 
+-// Standardized API error response (wraps ErrorObject array)
+ export interface ApiErrorResponse {
+   errors: ErrorObject[];
+ }
+
+--- a/src/lib/prompts.ts
++++ b/src/lib/prompts.ts
+@@ -1,3 +1,4 @@
++import { createHash } from "crypto";
+ import type {
+   PromptAOutput,
+   PromptBOutput,
+@@ -6,361 +7,300 @@
+   PeakMoment,
+   InferredFormatType,
+   TierCompatibilityType,
++  IssueLocation,
+ } from "./types";
+ 
+ /**
+- * Generate a deterministic hash-based ID from input string.
+- * Used to create stable IDs for issues/moments across runs.
++ * Normalize text for hashing (stable across platforms).
++ * NOTE: Do not lower-case; preserve semantics. Keep deterministic.
+  */
+-function deterministicId(prefix: string, index: number, seed: string): string {
+-  // Simple deterministic ID based on prefix, index, and a seed derived from content
+-  const seedHash = seed.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+-  return `${prefix}_${(seedHash % 1000).toString().padStart(3, "0")}_${index.toString().padStart(3, "0")}`;
++function normalizeForHash(text: string): string {
++  return text
++    .replace(/\r\n/g, "\n")
++    .replace(/\r/g, "\n")
++    .replace(/\u00A0/g, " ")
++    .replace(/\s+/g, " ")
++    .trim();
++}
++
++function sha256(text: string): string {
++  return createHash("sha256").update(text, "utf8").digest("hex");
++}
++
++function stableId(prefix: string, index: number, seed: string): string {
++  const suffix = seed.slice(0, 8);
++  return `${prefix}_${index + 1}_${suffix}`;
++}
++
++function countWords(text: string): number {
++  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
++  if (!normalized) return 0;
++  return normalized.split(/\s+/).filter(Boolean).length;
++}
++
++function estimatePages(wordCount: number): number {
++  // Practical placeholder: ~250 words/page, min 0.5
++  return Math.max(0.5, Math.round((wordCount / 250) * 10) / 10);
++}
++
++function inferFormat(wordCount: number, estimatedPages: number): InferredFormatType {
++  // Deterministic heuristic:
++  // - tiny content: scene
++  // - typical TV lengths: half_hour/hour
++  // - longer: feature
++  if (estimatedPages <= 8 || wordCount < 2000) return "scene";
++  if (estimatedPages <= 45) return "half_hour";
++  if (estimatedPages <= 75) return "hour";
++  return "feature";
++}
++
++function tierCompatibility(inferred: InferredFormatType, wordCount: number): TierCompatibilityType {
++  // Deterministic guardrails (placeholder, Slice-0)
++  const ranges: Record<InferredFormatType, { min: number; max: number }> = {
++    scene: { min: 200, max: 6000 },
++    half_hour: { min: 2500, max: 15000 },
++    hour: { min: 5000, max: 25000 },
++    feature: { min: 10000, max: 50000 },
++  };
++  const r = ranges[inferred];
++  if (wordCount < r.min) return "too_short";
++  if (wordCount > r.max) return "too_long";
++  return "ok";
++}
++
++function makeLocation(type: IssueLocation["type"], value: string): IssueLocation {
++  return { type, value };
++}
++
++function pseudoScore(seedHex: string): number {
++  // Deterministic 0-100 from first 2 bytes
++  const n = parseInt(seedHex.slice(0, 4), 16); // 0..65535
++  return Math.round(((n % 7000) / 7000) * 1000) / 10; // 0..100 with 0.1
++}
++
++function bounded01(seedHex: string, offset: number): number {
++  const n = parseInt(seedHex.slice(offset, offset + 4), 16);
++  return Math.round(((n % 1000) / 1000) * 1000) / 1000;
+ }
+ 
+ /**
+- * Infer script format based on content heuristics.
+- */
+-function inferFormat(text: string): InferredFormatType {
+-  const lowerText = text.toLowerCase();
+-  
+-  if (lowerText.includes("int.") || lowerText.includes("ext.") || lowerText.includes("fade in")) {
+-    return "screenplay";
+-  }
+-  if (lowerText.includes("[laugh]") || lowerText.includes("[applause]") || lowerText.includes("monologue")) {
+-    return "late_night";
+-  }
+-  if (lowerText.includes("sketch") || lowerText.includes("scene:")) {
+-    return "sketch";
+-  }
+-  if (lowerText.includes("roast") || lowerText.includes("burn")) {
+-    return "roast";
+-  }
+-  if (lowerText.includes("cold open") || lowerText.includes("laugh track")) {
+-    return "sitcom";
+-  }
+-  // Default to standup for general comedy text
+-  if (text.length > 100) {
+-    return "standup";
+-  }
+-  return "unknown";
+-}
+-
+-/**
+- * Determine tier compatibility based on word count.
+- */
+-function determineTierCompatibility(wordCount: number): TierCompatibilityType {
+-  if (wordCount <= 500) return "free";
+-  if (wordCount <= 5000) return "pro";
+-  return "enterprise";
+-}
+-
+-/**
+- * Stub implementation of Prompt A analysis.
+- * Returns Truth Contract compliant output with deterministic values.
+- * 
+- * NO prose or coaching - just structured data.
++ * Slice-0 Prompt A generator (deterministic placeholders).
++ * MUST be structure-only (no prose/coaching).
+  */
+ export function runPromptA(scriptText: string): PromptAOutput {
+-  const wordCount = scriptText.split(/\s+/).filter(Boolean).length;
+-  const estimatedPages = Math.max(0.5, wordCount / 250); // ~250 words per page
+-  const inferredFormat = inferFormat(scriptText);
+-  const tierCompatibility = determineTierCompatibility(wordCount);
+-  
+-  // Generate deterministic issue candidates based on script characteristics
+-  const issuesCandidates: IssueCandidate[] = [];
+-  const textLength = scriptText.length;
+-  const seedStr = scriptText.slice(0, 50); // Use first 50 chars as seed
+-  
+-  // Issue 1: Timing issue for scripts > 50 chars
+-  if (textLength > 50) {
+-    issuesCandidates.push({
+-      issue_id: deterministicId("ISS", 1, seedStr),
+-      type: "timing",
+-      location: {
+-        type: "line_range",
+-        value: "1-3",
+-      },
+-      severity: "medium",
+-      tags: ["pacing", "opening"],
++  const wordCount = countWords(scriptText);
++  const estimatedPages = estimatePages(wordCount);
++
++  const seed = sha256(normalizeForHash(scriptText));
++  const inferred = inferFormat(wordCount, estimatedPages);
++  const compatibility = tierCompatibility(inferred, wordCount);
++
++  const overallScore = Math.max(0, Math.min(100, pseudoScore(seed)));
++
++  const peakMoments: PeakMoment[] = [
++    {
++      moment_id: stableId("moment", 0, seed),
++      label: "Early hook",
++      location: makeLocation("line_range", "L10-L18"),
++      reason_tag: "surprise",
++    },
++    {
++      moment_id: stableId("moment", 1, seed),
++      label: "Midpoint turn",
++      location: makeLocation("line_range", "L120-L140"),
++      reason_tag: "escalation",
++    },
++    {
++      moment_id: stableId("moment", 2, seed),
++      label: "Ending beat",
++      location: makeLocation("line_range", "L260-L275"),
++      reason_tag: "button",
++    },
++  ];
++
++  const issueCandidates: IssueCandidate[] = [
++    {
++      issue_id: stableId("issue", 0, seed),
++      type: "pacing_soft_spot",
++      location: makeLocation("line_range", "L85-L110"),
++      severity: "moderate",
++      tags: ["pacing", "momentum"],
+       evidence: {
+-        quote_snippet: scriptText.slice(0, Math.min(100, textLength)).trim().slice(0, 140),
+-        metric_refs: ["lpm_intermediate_plus", "lines_per_joke"],
+-      },
+-    });
+-  }
+-  
+-  // Issue 2: Structure issue for scripts > 200 chars
+-  if (textLength > 200) {
+-    issuesCandidates.push({
+-      issue_id: deterministicId("ISS", 2, seedStr),
+-      type: "structure",
+-      location: {
+-        type: "section",
+-        value: "middle",
+-      },
+-      severity: "low",
+-      tags: ["flow", "transition"],
++        quote_snippet: "Snippet withheld in Slice-0 (pacing soft spot).",
++        metric_refs: ["lines_per_joke", "retention_risk"],
++      },
++    },
++    {
++      issue_id: stableId("issue", 1, seed),
++      type: "escalation_repeat",
++      location: makeLocation("line_range", "L150-L190"),
++      severity: "minor",
++      tags: ["escalation", "variety"],
+       evidence: {
+-        quote_snippet: scriptText.slice(100, Math.min(240, textLength)).trim().slice(0, 140),
+-        metric_refs: ["retention_risk"],
+-      },
+-    });
+-  }
+-  
+-  // Issue 3: Punchline issue for scripts > 500 chars
+-  if (textLength > 500) {
+-    issuesCandidates.push({
+-      issue_id: deterministicId("ISS", 3, seedStr),
+-      type: "punchline",
+-      location: {
+-        type: "line_range",
+-        value: `${Math.floor(wordCount * 0.8)}-${wordCount}`,
+-      },
+-      severity: "high",
+-      tags: ["payoff", "ending"],
++        quote_snippet: "Snippet withheld in Slice-0 (repeat escalation).",
++        metric_refs: ["peak_moments", "retention_risk"],
++      },
++    },
++    {
++      issue_id: stableId("issue", 2, seed),
++      type: "button_weakness",
++      location: makeLocation("line_range", "L265-L275"),
++      severity: "major",
++      tags: ["ending", "button"],
+       evidence: {
+-        quote_snippet: scriptText.slice(-140).trim(),
+-        metric_refs: ["overall_score", "peak_moments"],
+-      },
+-    });
+-  }
+-
+-  // Generate deterministic peak moments
+-  const peakMoments: PeakMoment[] = [];
+-  if (textLength > 100) {
+-    peakMoments.push({
+-      moment_id: deterministicId("PKM", 1, seedStr),
+-      location: "lines 5-7",
+-      description: "Strong setup with potential for callback",
+-      strength: 72,
+-    });
+-  }
+-  if (textLength > 300) {
+-    peakMoments.push({
+-      moment_id: deterministicId("PKM", 2, seedStr),
+-      location: "lines 12-15",
+-      description: "Effective misdirection leading to surprise",
+-      strength: 68,
+-    });
+-  }
+-
+-  // Calculate deterministic score based on issues
+-  const baseScore = 78;
+-  const penalty = issuesCandidates.reduce((acc, issue) => {
+-    const severityPenalty = { low: 2, medium: 5, high: 10 };
+-    return acc + severityPenalty[issue.severity];
+-  }, 0);
+-  const overallScore = Math.max(40, Math.min(95, baseScore - penalty));
+-
+-  // Estimate jokes and LPM
+-  const estimatedJokes = Math.max(1, Math.floor(wordCount / 30));
+-  const linesPerJoke = wordCount > 0 ? Math.round((wordCount / estimatedJokes) * 10) / 10 : 0;
+-  const lpmIntermediatePlus = Math.round((estimatedJokes / Math.max(1, estimatedPages)) * 10) / 10;
++        quote_snippet: "Snippet withheld in Slice-0 (ending button weakness).",
++        metric_refs: ["overall_score"],
++      },
++    },
++    {
++      issue_id: stableId("issue", 3, seed),
++      type: "character_underutilization",
++      location: makeLocation("scene", "Scene 4"),
++      severity: "minor",
++      tags: ["character", "balance"],
++      evidence: {
++        quote_snippet: "Snippet withheld in Slice-0 (character underutilized).",
++        metric_refs: ["character_balance"],
++      },
++    },
++  ];
++
++  // Keep a deterministic max list even for short scripts (Slice-0 stubs)
++  const maxIssues = 4;
++  const finalIssues = issueCandidates.slice(0, maxIssues);
++
++  const lpm = Math.max(0, Math.round((overallScore / 20) * 10) / 10);
++  const linesPerJoke = Math.max(1, Math.round((12 - overallScore / 12) * 10) / 10);
+ 
+   return {
+     classification: {
+-      inferred_format: inferredFormat,
++      inferred_format: inferred,
+       word_count: wordCount,
+-      estimated_pages: Math.round(estimatedPages * 100) / 100,
+-      tier_compatibility: tierCompatibility,
++      estimated_pages: estimatedPages,
++      tier_compatibility: compatibility,
+     },
+     metrics: {
+       overall_score: overallScore,
+-      lpm_intermediate_plus: lpmIntermediatePlus,
++      lpm_intermediate_plus: lpm,
+       lines_per_joke: linesPerJoke,
+-      peak_moments: peakMoments,
+-      character_balance: [
+-        {
+-          character_name: "Primary Speaker",
+-          line_percentage: 100,
+-          joke_percentage: 100,
+-        },
+-      ],
++      peak_moments: peakMoments.slice(0, 3),
++      character_balance: {
++        ensemble_balance: Math.max(0, Math.min(1, 1 - bounded01(seed, 8) / 2)),
++        dominant_character: "CHAR_A",
++        characters: [
++          { name: "CHAR_A", joke_share: 0.45, line_share: 0.5, underutilized: false },
++          { name: "CHAR_B", joke_share: 0.35, line_share: 0.3, underutilized: false },
++          { name: "CHAR_C", joke_share: 0.20, line_share: 0.2, underutilized: true },
++        ],
++      },
+       retention_risk: {
+-        risk_level: issuesCandidates.some(i => i.severity === "high") ? "medium" : "low",
+-        factors: issuesCandidates.length > 2 
+-          ? ["Multiple areas need attention", "Pacing concerns"]
+-          : ["Minor refinements suggested"],
+-      },
+-    },
+-    issue_candidates: issuesCandidates,
++        overall_risk: overallScore >= 70 ? "low" : overallScore >= 45 ? "medium" : "high",
++        indicators: [
++          {
++            indicator_id: stableId("indicator", 0, seed),
++            type: "gap_cluster",
++            location: makeLocation("line_range", "L85-L110"),
++            severity: "moderate",
++          },
++        ],
++      },
++    },
++    issue_candidates: finalIssues,
+   };
+ }
+ 
+ /**
+- * Stub implementation of Prompt B analysis.
+- * Returns Truth Contract compliant output with deterministic values.
+- * 
+- * CONSTRAINT: Only references issue_ids from promptA.issue_candidates.
+- * CONSTRAINT: Only references moment_ids from promptA.metrics.peak_moments.
++ * Slice-0 Prompt B generator (deterministic placeholders).
++ * MUST NOT introduce new issues beyond Prompt A.
+  */
+ export function runPromptB(
+   scriptText: string,
+   promptA: PromptAOutput,
+   tierConfig: TierConfig
+ ): PromptBOutput {
+-  const { issue_candidates, metrics } = promptA;
+-  const seedStr = scriptText.slice(0, 50);
+-  
+-  // Build comedy metrics snapshot bullets
+-  const bullets: string[] = [
+-    `Overall Score: ${metrics.overall_score}/100`,
+-    `Laughs Per Minute (intermediate+): ${metrics.lpm_intermediate_plus}`,
+-    `Lines Per Joke: ${metrics.lines_per_joke}`,
+-    `Peak Moments Identified: ${metrics.peak_moments.length}`,
+-    `Issues to Address: ${issue_candidates.length}`,
++  const issueIds = new Set(promptA.issue_candidates.map((i) => i.issue_id));
++
++  const maxIssues = Math.max(0, Math.min(tierConfig.max_issues, promptA.issue_candidates.length));
++  const selectedIssues = promptA.issue_candidates.slice(0, maxIssues);
++
++  // Hard enforcement in generator (runtime route also re-checks)
++  for (const i of selectedIssues) {
++    if (!issueIds.has(i.issue_id)) {
++      throw new Error(`Prompt B attempted to reference unknown issue_id: ${i.issue_id}`);
++    }
++  }
++
++  const bullets = [
++    `Overall score: ${promptA.metrics.overall_score}/100`,
++    `Lines per joke: ${promptA.metrics.lines_per_joke}`,
++    `LPM (Intermediate+): ${promptA.metrics.lpm_intermediate_plus}`,
++    `Retention risk: ${promptA.metrics.retention_risk.overall_risk}`,
+   ];
+ 
+-  // Build strengths to preserve (deterministic based on peak moments)
+-  const strengthsToPreserve = metrics.peak_moments.slice(0, 3).map((pm, idx) => ({
+-    strength_id: deterministicId("STR", idx + 1, seedStr),
+-    description: pm.description,
+-    location: pm.location,
++  const whatsGettingInTheWay = selectedIssues.map((iss, idx) => ({
++    issue_id: iss.issue_id,
++    why_it_matters: "This creates a local dip in momentum and reduces payoff clarity.",
++    concrete_fix: {
++      title: `Fix ${idx + 1}: tighten and escalate`,
++      steps: [
++        "Trim one beat that restates the same idea.",
++        "Add one clear escalation turn (new information or higher stakes).",
++        "End the beat with a cleaner button that changes the next beat’s energy.",
++      ],
++      expected_result: "Faster pace, clearer progression, stronger payoff density.",
++    },
+   }));
+ 
+-  // Add a general strength if no peak moments
+-  if (strengthsToPreserve.length === 0) {
+-    strengthsToPreserve.push({
+-      strength_id: deterministicId("STR", 1, seedStr),
+-      description: "Clear comedic intent and premise",
+-      location: undefined,
+-    });
+-  }
+-
+-  // Build "what's getting in the way" - ONLY from existing issue_candidates
+-  const whatsGettingInTheWay = issue_candidates
+-    .filter(ic => ic.severity === "high" || ic.severity === "medium")
+-    .slice(0, tierConfig.max_issues)
+-    .map(ic => ({
+-      issue_id: ic.issue_id, // Reference existing issue
+-      why_it_matters: `${ic.type} issues at ${ic.location.value} can reduce audience engagement`,
+-      concrete_fix: {
+-        title: `Address ${ic.type} in ${ic.location.type}`,
+-        steps: [
+-          `Review the ${ic.location.type} at ${ic.location.value}`,
+-          `Consider tightening the ${ic.type} for better impact`,
+-          "Test with a small audience for feedback",
+-        ],
+-        expected_result: `Improved ${ic.type} leading to stronger audience response`,
+-      },
+-    }));
+-
+-  // Build recommended fixes - ONLY from existing issue_candidates
+-  const recommendedFixes = issue_candidates.slice(0, tierConfig.max_issues).map(ic => ({
+-    issue_id: ic.issue_id, // Reference existing issue
+-    fix: `Refine the ${ic.type} at ${ic.location.value} by tightening the delivery and ensuring the payoff lands cleanly`,
++  const recommendedFixes = selectedIssues.map((iss) => ({
++    issue_id: iss.issue_id,
++    fix: "Apply the concrete fix steps above; keep the change localized to the tagged location.",
+   }));
+ 
+-  // Build punch-up suggestions - ONLY reference existing peak_moments
+-  const punchUpSuggestions = metrics.peak_moments
+-    .slice(0, tierConfig.punch_up_moments)
+-    .map((pm, pmIdx) => ({
+-      moment_id: pm.moment_id, // Reference existing moment
+-      moment_context: `${pm.description} (${pm.location})`,
+-      options: Array.from({ length: tierConfig.options_per_moment }, (_, optIdx) => ({
+-        option_id: deterministicId("OPT", pmIdx * 10 + optIdx + 1, seedStr),
+-        device: ["callback", "tag", "act_out", "topper"][optIdx % 4],
+-        text: `Alternative ${optIdx + 1}: Enhanced version with ${["callback reference", "additional tag", "physical element", "heightened ending"][optIdx % 4]}`,
+-      })),
+-    }));
+-
+-  // Determine revision mode based on issue count and severity
+-  const highSeverityCount = issue_candidates.filter(ic => ic.severity === "high").length;
+-  let revisionMode: "quick_pass" | "deep_revision" | "rewrite" = "quick_pass";
+-  if (highSeverityCount >= 2) {
+-    revisionMode = "deep_revision";
+-  } else if (issue_candidates.length >= 5 || metrics.overall_score < 50) {
+-    revisionMode = "rewrite";
+-  }
++  const peakMoments = promptA.metrics.peak_moments.slice(0, tierConfig.punch_up_moments);
++  const punchUpSuggestions = peakMoments.map((m, midx) => ({
++    moment_id: m.moment_id,
++    moment_context: `${m.label} (${m.location.value})`,
++    options: Array.from({ length: tierConfig.options_per_moment }).map((_, oidx) => ({
++      option_id: stableId(`opt_${midx + 1}`, oidx, m.moment_id),
++      device: ["misdirection", "contrast", "tag"][oidx % 3],
++      text: `Slice-0 placeholder punch-up option ${oidx + 1} for ${m.label}.`,
++    })),
++  }));
++
++  const revisionMode = tierConfig.revision_guidance_level; // time_boxed | multi_pass
++  const revisionSteps =
++    revisionMode === "time_boxed"
++      ? [
++          { step: "Pass 1: Fix the top issues in order.", timebox_minutes: 25 },
++          { step: "Pass 2: Punch up the selected peak moments.", timebox_minutes: 20 },
++          { step: "Pass 3: Quick read for flow + buttons.", timebox_minutes: 15 },
++        ]
++      : [
++          { step: "Pass A: Structural tightening by issue list.", pass: "A" },
++          { step: "Pass B: Punch-up moments pass.", pass: "B" },
++          { step: "Pass C: Dialogue/line polish pass.", pass: "C" },
++        ];
+ 
+   return {
+     sections: {
+       comedy_metrics_snapshot: {
+         bullets,
+-        notes: tierConfig.metrics_verbosity === "detailed" 
+-          ? "Detailed metrics analysis available for this tier level"
+-          : undefined,
+-      },
+-      strengths_to_preserve: strengthsToPreserve,
++        notes: "Deterministic Slice-0 placeholders (no external calls).",
++      },
++      strengths_to_preserve: [
++        "Clear premise signal early.",
++        "At least one strong escalation moment.",
++        "Distinct character voices in key beats.",
++      ],
+       whats_getting_in_the_way: whatsGettingInTheWay,
+       recommended_fixes: recommendedFixes,
+       punch_up_suggestions: punchUpSuggestions,
+       how_to_revise_this_efficiently: {
+         revision_plan: {
+           mode: revisionMode,
+-          steps: revisionMode === "quick_pass"
+-            ? [
+-                "Address the highest-severity issue first",
+-                "Review peak moments for enhancement opportunities",
+-                "Do a final read-through for flow",
+-              ]
+-            : revisionMode === "deep_revision"
+-            ? [
+-                "Map out all issues by location",
+-                "Restructure problem sections",
+-                "Strengthen transitions between bits",
+-                "Enhance peak moments with tags or callbacks",
+-                "Full read-through with timing",
+-              ]
+-            : [
+-                "Re-examine core premise",
+-                "Rebuild joke structure from scratch",
+-                "Identify 2-3 strongest moments to preserve",
+-                "Write fresh material around preserved moments",
+-                "Test new version extensively",
+-              ],
++          steps: revisionSteps,
+         },
+       },
+     },
+   };
+ }
+-
+-/**
+- * Validate that all issue_ids in Prompt B reference existing issues from Prompt A.
+- * Returns array of invalid issue_ids if any are found.
+- */
+-export function validatePromptBIssueReferences(
+-  promptA: PromptAOutput,
+-  promptB: PromptBOutput
+-): string[] {
+-  const validIssueIds = new Set(promptA.issue_candidates.map(ic => ic.issue_id));
+-  const invalidRefs: string[] = [];
+-
+-  // Check whats_getting_in_the_way
+-  for (const item of promptB.sections.whats_getting_in_the_way) {
+-    if (!validIssueIds.has(item.issue_id)) {
+-      invalidRefs.push(item.issue_id);
+-    }
+-  }
+-
+-  // Check recommended_fixes
+-  for (const item of promptB.sections.recommended_fixes) {
+-    if (!validIssueIds.has(item.issue_id)) {
+-      invalidRefs.push(item.issue_id);
+-    }
+-  }
+-
+-  return [...new Set(invalidRefs)]; // Deduplicate
+-}
+-
+-/**
+- * Validate that all moment_ids in Prompt B reference existing peak_moments from Prompt A.
+- * Returns array of invalid moment_ids if any are found.
+- */
+-export function validatePromptBMomentReferences(
+-  promptA: PromptAOutput,
+-  promptB: PromptBOutput
+-): string[] {
+-  const validMomentIds = new Set(promptA.metrics.peak_moments.map(pm => pm.moment_id));
+-  const invalidRefs: string[] = [];
+-
+-  // Check punch_up_suggestions
+-  for (const item of promptB.sections.punch_up_suggestions) {
+-    if (!validMomentIds.has(item.moment_id)) {
+-      invalidRefs.push(item.moment_id);
+-    }
+-  }
+-
+-  return [...new Set(invalidRefs)]; // Deduplicate
+-}
+
+--- a/src/app/api/jobs/[job_id]/run/route.ts
++++ b/src/app/api/jobs/[job_id]/run/route.ts
+@@ -2,107 +2,134 @@
+ import { createHash } from "crypto";
+ import { v4 as uuidv4 } from "uuid";
+ import prisma from "@/lib/prisma";
+-import { 
+-  STUB_USER_ID, 
+-  SCHEMA_VERSION, 
++import {
++  STUB_USER_ID,
++  SCHEMA_VERSION,
+   FinalOutputSchema,
++  PromptAOutputSchema,
++  PromptBOutputSchema,
+   type TierConfig,
+   type ScriptFingerprint,
+   type FinalOutput,
+   type ErrorObject,
+   type RunResponse,
++  type PromptAOutput,
++  type PromptBOutput,
+ } from "@/lib/types";
+-import { 
+-  runPromptA, 
+-  runPromptB, 
+-  validatePromptBIssueReferences,
+-  validatePromptBMomentReferences,
+-} from "@/lib/prompts";
+-import { 
+-  createErrorObject, 
+-  errorResponse, 
+-  generateRequestId,
+-} from "@/lib/api-errors";
++import { runPromptA, runPromptB } from "@/lib/prompts";
++import { createErrorObject, errorResponse, generateRequestId } from "@/lib/api-errors";
+ import logger from "@/lib/logger";
+ 
+ // Required for Prisma on Vercel serverless
+ export const runtime = "nodejs";
+ 
+-interface RouteParams {
+-  params: Promise<{
+-    job_id: string;
+-  }>;
+-}
++type RouteParams = {
++  params: Promise<{ job_id: string }>;
++};
+ 
+ /**
+- * Normalize script text for consistent hashing.
++ * Normalize script text for hashing/fingerprinting.
++ * SECURITY: Never log this normalized text.
+  */
+-function normalizeText(text: string): string {
++function normalizeForHash(text: string): string {
+   return text
+     .replace(/\r\n/g, "\n")
+     .replace(/\r/g, "\n")
+-    .trim()
+-    .toLowerCase();
+-}
+-
+-/**
+- * Compute SHA256 hash of normalized script text.
+- */
++    .replace(/\u00A0/g, " ")
++    .replace(/\s+/g, " ")
++    .trim();
++}
++
+ function computeInputHash(text: string): string {
+-  const normalized = normalizeText(text);
++  const normalized = normalizeForHash(text);
+   return createHash("sha256").update(normalized, "utf8").digest("hex");
+ }
+ 
+-/**
+- * Compute script fingerprint for Truth Contract.
+- */
++function countWords(text: string): number {
++  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
++  if (!normalized) return 0;
++  return normalized.split(/\s+/).filter(Boolean).length;
++}
++
++function estimatePages(wordCount: number): number {
++  // Practical approximation: ~250 words per page, min 0.5
++  return Math.max(0.5, Math.round((wordCount / 250) * 10) / 10);
++}
++
++function inferFormat(wordCount: number, estimatedPages: number): ScriptFingerprint["inferred_format"] {
++  if (estimatedPages <= 8 || wordCount < 2000) return "scene";
++  if (estimatedPages <= 45) return "half_hour";
++  if (estimatedPages <= 75) return "hour";
++  return "feature";
++}
++
++function tierCompatibility(
++  inferred: ScriptFingerprint["inferred_format"],
++  wordCount: number
++): ScriptFingerprint["tier_compatibility"] {
++  const ranges: Record<ScriptFingerprint["inferred_format"], { min: number; max: number }> = {
++    scene: { min: 200, max: 6000 },
++    half_hour: { min: 2500, max: 15000 },
++    hour: { min: 5000, max: 25000 },
++    feature: { min: 10000, max: 50000 },
++  };
++
++  const r = ranges[inferred];
++  if (wordCount < r.min) return "too_short";
++  if (wordCount > r.max) return "too_long";
++  return "ok";
++}
++
+ function computeScriptFingerprint(text: string): ScriptFingerprint {
+-  const wordCount = text.split(/\s+/).filter(Boolean).length;
+-  const estimatedPages = Math.max(0.5, wordCount / 250);
+-  
+-  // Infer format (simplified heuristics)
+-  const lowerText = text.toLowerCase();
+-  let inferredFormat: ScriptFingerprint["inferred_format"] = "unknown";
+-  if (lowerText.includes("int.") || lowerText.includes("ext.")) {
+-    inferredFormat = "screenplay";
+-  } else if (lowerText.includes("[laugh]") || lowerText.includes("monologue")) {
+-    inferredFormat = "late_night";
+-  } else if (text.length > 100) {
+-    inferredFormat = "standup";
+-  }
+-
+-  // Determine tier compatibility
+-  let tierCompatibility: ScriptFingerprint["tier_compatibility"] = "free";
+-  if (wordCount > 500) tierCompatibility = "pro";
+-  if (wordCount > 5000) tierCompatibility = "enterprise";
++  const wc = countWords(text);
++  const pages = estimatePages(wc);
++  const inferred = inferFormat(wc, pages);
+ 
+   return {
+     input_hash: computeInputHash(text),
+-    word_count: wordCount,
+-    estimated_pages: Math.round(estimatedPages * 100) / 100,
+-    inferred_format: inferredFormat,
+-    tier_compatibility: tierCompatibility,
++    word_count: wc,
++    estimated_pages: pages,
++    inferred_format: inferred,
++    tier_compatibility: tierCompatibility(inferred, wc),
+   };
+ }
+ 
++function getDefaultTierConfig(): TierConfig {
++  // Slice-0 defaults: Pro tier, small limits, deterministic.
++  return {
++    depth_level: "pro",
++    max_issues: 4,
++    punch_up_moments: 3,
++    options_per_moment: 3,
++    metrics_verbosity: "interpretive",
++    revision_guidance_level: "time_boxed",
++  };
++}
++
++function extractPromptBIssueIds(promptB: PromptBOutput): string[] {
++  const ids: string[] = [];
++  for (const row of promptB.sections.whats_getting_in_the_way) ids.push(row.issue_id);
++  for (const row of promptB.sections.recommended_fixes) ids.push(row.issue_id);
++  return ids;
++}
++
++function extractPromptBMomentIds(promptB: PromptBOutput): string[] {
++  return promptB.sections.punch_up_suggestions.map((p) => p.moment_id);
++}
++
++function validatePromptBReferences(promptA: PromptAOutput, promptB: PromptBOutput) {
++  const issueSet = new Set(promptA.issue_candidates.map((i) => i.issue_id));
++  const momentSet = new Set(promptA.metrics.peak_moments.map((m) => m.moment_id));
++
++  const invalidIssues = extractPromptBIssueIds(promptB).filter((id) => !issueSet.has(id));
++  const invalidMoments = extractPromptBMomentIds(promptB).filter((id) => !momentSet.has(id));
++
++  return { invalidIssues, invalidMoments };
++}
++
+ /**
+- * Get default tier config for Slice-0 (pro tier with conservative limits).
+- */
+-function getDefaultTierConfig(): TierConfig {
+-  return {
+-    depth_level: "standard",
+-    max_issues: 5,
+-    punch_up_moments: 3,
+-    options_per_moment: 2,
+-    metrics_verbosity: "standard",
+-    revision_guidance_level: "moderate",
+-  };
+-}
+-
+-/**
+- * Persist an error report to the database.
+- * This ensures immutable error records per Truth Contract.
+- */
++ * Persist an immutable error report to the database.
++ * */
+ async function persistErrorReport(params: {
+   run_id: string;
+   job_id: string;
+@@ -111,8 +138,10 @@
+   scriptFingerprint: ScriptFingerprint;
+   createdAt: string;
+   errors: ErrorObject[];
+-}): Promise<void> {
+-  const errorOutput: FinalOutput = {
++  promptA?: PromptAOutput;
++  promptB?: PromptBOutput;
++}) {
++  const output: FinalOutput = {
+     schema_version: SCHEMA_VERSION,
+     run: {
+       run_id: params.run_id,
+@@ -120,6 +149,8 @@
+       tier_config: params.tierConfig,
+       script_fingerprint: params.scriptFingerprint,
+     },
++    prompt_a: params.promptA,
++    prompt_b: params.promptB,
+     errors: params.errors,
+   };
+ 
+@@ -130,7 +161,7 @@
+         job_id: params.job_id,
+         user_id: params.user_id,
+         schema_version: SCHEMA_VERSION,
+-        output: errorOutput,
++        output,
+       },
+     }),
+     prisma.analysisJob.update({
+@@ -145,13 +176,12 @@
+ 
+ /**
+  * POST /api/jobs/[job_id]/run
+- * 
+- * Execute the analysis job (Prompt A → Prompt B → Store Report).
+- * 
+- * IDEMPOTENCY: If job is already completed with a run_id, returns existing
+- * run_id without re-running.
+- * 
+- * TRUTH CONTRACT: Failures after run_id allocation persist immutable error reports.
++ *
++ * Execute the Slice-0 analysis job (Prompt A → Prompt B → Store Report).
++ * Idempotent on completed jobs (returns existing run_id).
++ *
++ * SECURITY: No raw script content in logs.
++ * TRUTH CONTRACT: Store output compliant with schema_version 1.0.0.
+  */
+ export async function POST(
+   request: NextRequest,
+@@ -161,63 +191,54 @@
+   const request_id = generateRequestId();
+   const endTimer = logger.startTimer("POST /api/jobs/[job_id]/run", { job_id, request_id });
+ 
+-  // Validate UUID format
++  // Track these so we can persist an immutable error report after run_id allocation.
++  let allocated_run_id: string | null = null;
++  let allocated_created_at: string | null = null;
++  let allocated_tier_config: TierConfig | null = null;
++  let allocated_script_fingerprint: ScriptFingerprint | null = null;
++  let partial_prompt_a: PromptAOutput | undefined;
++  let partial_prompt_b: PromptBOutput | undefined;
++
++
++  // Validate UUID format early
+   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+   if (!uuidRegex.test(job_id)) {
+-    logger.warn("Invalid job_id format", { job_id, user_id: STUB_USER_ID, request_id });
++    endTimer();
+     return errorResponse(400, [
+-      createErrorObject({
+-        code: "INPUT_VALIDATION_FAILED",
+-        message: "Invalid job_id format",
+-        stage: "input_validation",
+-        retryable: false,
+-        request_id,
+-      }),
+-    ]);
+-  }
+-
+-  try {
+-    // Fetch job with script text
+-    const job = await prisma.analysisJob.findUnique({
+-      where: { id: job_id },
+-      include: {
+-        script: {
+-          select: { id: true, text: true },
+-        },
+-      },
+-    });
+-
+-    if (!job) {
+-      logger.warn("Job not found", { job_id, user_id: STUB_USER_ID, request_id });
+-      return errorResponse(404, [
+-        createErrorObject({
++createErrorObject({
+           code: "INPUT_VALIDATION_FAILED",
+-          message: "Job not found",
++          message: "Invalid job_id format",
+           stage: "input_validation",
+           retryable: false,
+           request_id,
++          details: { field: "job_id" },
+         }),
+-      ]);
+-    }
+-
+-    // Owner check
+-    if (job.user_id !== STUB_USER_ID) {
+-      logger.warn("Job ownership mismatch", { job_id, user_id: STUB_USER_ID, request_id });
++    ]);
++  }
++
++  try {
++    const job = await prisma.analysisJob.findFirst({
++      where: { id: job_id, user_id: STUB_USER_ID },
++      include: { script: true },
++    });
++
++    if (!job) {
++      endTimer();
+       return errorResponse(404, [
+-        createErrorObject({
+-          code: "INPUT_VALIDATION_FAILED",
+-          message: "Job not found",
+-          stage: "input_validation",
+-          retryable: false,
+-          request_id,
+-        }),
+-      ]);
+-    }
+-
+-    // IDEMPOTENCY: If job already completed, return existing run_id
++createErrorObject({
++            code: "NOT_FOUND",
++            message: "Job not found",
++            stage: "input_validation",
++            retryable: false,
++            request_id,
++            details: { job_id },
++          }),
++    ]);
++    }
++
+     if (job.status === "completed" && job.run_id) {
+-      logger.info("Job already completed, returning existing run_id", { 
+-        job_id, 
++      logger.info("Job already completed, returning existing run_id", {
++        job_id,
+         run_id: job.run_id,
+         status: job.status,
+         request_id,
+@@ -231,56 +252,58 @@
+       });
+     }
+ 
+-    // Check if job is already running
+     if (job.status === "running") {
+-      logger.warn("Job is already running", { job_id, status: job.status, request_id });
++      endTimer();
+       return errorResponse(409, [
+-        createErrorObject({
+-          code: "INPUT_VALIDATION_FAILED",
+-          message: "Job is already running",
+-          stage: "input_validation",
+-          retryable: true,
+-          request_id,
+-        }),
+-      ]);
+-    }
+-
+-    // Check if job already failed
++createErrorObject({
++            code: "INPUT_VALIDATION_FAILED",
++            message: "Job is already running",
++            stage: "input_validation",
++            retryable: true,
++            request_id,
++            details: { job_id },
++          }),
++    ]);
++    }
++
+     if (job.status === "failed") {
+       logger.warn("Job previously failed", { job_id, status: job.status, request_id });
++      endTimer();
+       return errorResponse(409, [
+-        createErrorObject({
+-          code: "INPUT_VALIDATION_FAILED",
+-          message: "Job previously failed. Create a new job to retry.",
+-          stage: "input_validation",
+-          retryable: false,
+-          request_id,
+-        }),
+-      ]);
+-    }
+-
+-    // ========================================================================
+-    // ANALYSIS BEGINS - run_id allocated from here
+-    // Any failure after this point must persist an error report
+-    // ========================================================================
+-    
++createErrorObject({
++            code: "INPUT_VALIDATION_FAILED",
++            message: "Job previously failed. Create a new job to retry.",
++            stage: "input_validation",
++            retryable: false,
++            request_id,
++            details: { job_id },
++          }),
++    ]);
++    }
++
++    if (!job.script) {
++      endTimer();
++      return errorResponse(404, [
++createErrorObject({
++            code: "NOT_FOUND",
++            message: "Script submission not found for this job",
++            stage: "input_validation",
++            retryable: false,
++            request_id,
++            details: { job_id },
++          }),
++    ]);
++    }
++
++    // Allocate run_id and mark job running
+     const run_id = uuidv4();
+     const createdAt = new Date().toISOString();
+-    const tierConfig = getDefaultTierConfig();
+-    const scriptFingerprint = computeScriptFingerprint(job.script.text);
+-
+-    // Log only safe metadata (never raw script text)
+-    logger.info("Analysis starting", { 
+-      job_id, 
+-      run_id, 
+-      request_id,
+-      word_count: scriptFingerprint.word_count,
+-      inferred_format: scriptFingerprint.inferred_format,
+-    });
+-
+-    // Update job to running
++
++    allocated_run_id = run_id;
++    allocated_created_at = createdAt;
++
+     await prisma.analysisJob.update({
+-      where: { id: job_id },
++      where: { id: job.id },
+       data: {
+         status: "running",
+         run_id,
+@@ -288,394 +311,346 @@
+       },
+     });
+ 
++    const scriptText = job.script.text;
++    const scriptFingerprint = computeScriptFingerprint(scriptText);
++    const tierConfig = getDefaultTierConfig();
++
++    allocated_script_fingerprint = scriptFingerprint;
++    allocated_tier_config = tierConfig;
++
++    // Stage: Prompt A
++    let promptA: PromptAOutput | undefined;
+     try {
+-      // ====================================================================
+-      // PROMPT A
+-      // ====================================================================
+-      const promptAStart = Date.now();
+-      let promptAOutput;
++      promptA = runPromptA(scriptText);
++      partial_prompt_a = promptA;
++    } catch (err) {
++      logger.error("Prompt A failed", {
++        job_id,
++        run_id,
++        request_id,
++        // No script content in logs
++      });
++
++      const errorObj = createErrorObject({
++        code: "PROMPT_A_FAILED",
++        message: "Prompt A stage failed",
++        stage: "prompt_a",
++        retryable: true,
++        request_id: run_id,
++        details: { job_id, run_id },
++      });
++
++      await persistErrorReport({
++        run_id,
++        job_id: job.id,
++        user_id: STUB_USER_ID,
++        tierConfig,
++        scriptFingerprint,
++        createdAt,
++        errors: [errorObj],
++      });
++
++      endTimer();
++      return errorResponse(500, [
++errorObj
++    ]);
++    }
++
++    // Stage: Prompt A validation (schema)
++    const promptAValidation = PromptAOutputSchema.safeParse(promptA);
++    if (!promptAValidation.success) {
++      logger.error("Prompt A validation failed", {
++        job_id,
++        run_id,
++        request_id,
++        issue_count: promptA.issue_candidates?.length ?? 0,
++      });
++
++      const errorObj = createErrorObject({
++        code: "PROMPT_A_VALIDATION_FAILED",
++        message: "Prompt A output failed validation",
++        stage: "prompt_a_validation",
++        retryable: false,
++        request_id: run_id,
++        details: {
++          job_id,
++          run_id,
++          zod_issues: promptAValidation.error.issues.map((i) => ({
++            path: i.path.join("."),
++            message: i.message,
++          })),
++        },
++      });
++
++      await persistErrorReport({
++        run_id,
++        job_id: job.id,
++        user_id: STUB_USER_ID,
++        tierConfig,
++        scriptFingerprint,
++        createdAt,
++        errors: [errorObj],
++      });
++
++      endTimer();
++      return errorResponse(500, [
++errorObj
++    ]);
++    }
++
++    // Stage: Prompt B
++    let promptB: PromptBOutput | undefined;
++    try {
++      promptB = runPromptB(scriptText, promptA, tierConfig);
++      partial_prompt_b = promptB;
++    } catch (err) {
++      logger.error("Prompt B failed", {
++        job_id,
++        run_id,
++        request_id,
++      });
++
++      const errorObj = createErrorObject({
++        code: "PROMPT_B_FAILED",
++        message: "Prompt B stage failed",
++        stage: "prompt_b",
++        retryable: true,
++        request_id: run_id,
++        details: { job_id, run_id },
++      });
++
++      await persistErrorReport({
++        run_id,
++        job_id: job.id,
++        user_id: STUB_USER_ID,
++        tierConfig,
++        scriptFingerprint,
++        createdAt,
++        errors: [errorObj],
++        promptA,
++      });
++
++      endTimer();
++      return errorResponse(500, [
++errorObj
++    ]);
++    }
++
++    // Stage: Prompt B validation (schema)
++    const promptBValidation = PromptBOutputSchema.safeParse(promptB);
++    if (!promptBValidation.success) {
++      logger.error("Prompt B validation failed", {
++        job_id,
++        run_id,
++        request_id,
++      });
++
++      const errorObj = createErrorObject({
++        code: "PROMPT_B_VALIDATION_FAILED",
++        message: "Prompt B output failed validation",
++        stage: "prompt_b",
++        retryable: false,
++        request_id: run_id,
++        details: {
++          job_id,
++          run_id,
++          zod_issues: promptBValidation.error.issues.map((i) => ({
++            path: i.path.join("."),
++            message: i.message,
++          })),
++        },
++      });
++
++      await persistErrorReport({
++        run_id,
++        job_id: job.id,
++        user_id: STUB_USER_ID,
++        tierConfig,
++        scriptFingerprint,
++        createdAt,
++        errors: [errorObj],
++        promptA,
++      });
++
++      endTimer();
++      return errorResponse(500, [
++errorObj
++    ]);
++    }
++
++    // Enforce: Prompt B MUST NOT introduce new issues (runtime enforcement)
++    const { invalidIssues, invalidMoments } = validatePromptBReferences(promptA, promptB);
++    if (invalidIssues.length > 0 || invalidMoments.length > 0) {
++      logger.error("Prompt B contains invalid references", {
++        job_id,
++        run_id,
++        request_id,
++        invalid_issue_count: invalidIssues.length,
++        invalid_moment_count: invalidMoments.length,
++      });
++
++      const errorObj = createErrorObject({
++        code: "OUTPUT_VALIDATION_FAILED",
++        message: "Prompt B contains references not present in Prompt A",
++        stage: "prompt_a_validation",
++        retryable: false,
++        request_id: run_id,
++        details: {
++          job_id,
++          run_id,
++          invalid_issue_ids: invalidIssues,
++          invalid_moment_ids: invalidMoments,
++        },
++      });
++
++      await persistErrorReport({
++        run_id,
++        job_id: job.id,
++        user_id: STUB_USER_ID,
++        tierConfig,
++        scriptFingerprint,
++        createdAt,
++        errors: [errorObj],
++        promptA,
++        promptB,
++      });
++
++      endTimer();
++      return errorResponse(500, [
++errorObj
++    ]);
++    }
++
++    // Build final output (Truth Contract)
++    const finalOutput: FinalOutput = {
++      schema_version: SCHEMA_VERSION,
++      run: {
++        run_id,
++        created_at: createdAt,
++        tier_config: tierConfig,
++        script_fingerprint: scriptFingerprint,
++      },
++      prompt_a: promptA,
++      prompt_b: promptB,
++    };
++
++    // Validate final output before persistence
++    const validationResult = FinalOutputSchema.safeParse(finalOutput);
++    if (!validationResult.success) {
++      logger.error("Final output schema validation failed", {
++        job_id,
++        run_id,
++        request_id,
++      });
++
++      const errorObj = createErrorObject({
++        code: "OUTPUT_VALIDATION_FAILED",
++        message: "Final output failed Truth Contract validation",
++        stage: "persistence",
++        retryable: false,
++        request_id: run_id,
++        details: {
++          job_id,
++          run_id,
++          zod_issues: validationResult.error.issues.map((i) => ({
++            path: i.path.join("."),
++            message: i.message,
++          })),
++        },
++      });
++
++      await persistErrorReport({
++        run_id,
++        job_id: job.id,
++        user_id: STUB_USER_ID,
++        tierConfig,
++        scriptFingerprint,
++        createdAt,
++        errors: [errorObj],
++        promptA,
++        promptB,
++      });
++
++      endTimer();
++      return errorResponse(500, [
++errorObj
++    ]);
++    }
++
++    // Persist report (immutable) + mark job completed
++    await prisma.$transaction([
++      prisma.analysisReport.create({
++        data: {
++          id: run_id,
++          job_id: job.id,
++          user_id: STUB_USER_ID,
++          schema_version: SCHEMA_VERSION,
++          output: validationResult.data,
++        },
++      }),
++      prisma.analysisJob.update({
++        where: { id: job.id },
++        data: {
++          status: "completed",
++          completed_at: new Date(),
++        },
++      }),
++    ]);
++
++    endTimer();
++    return NextResponse.json({
++      job_id: job.id,
++      run_id,
++      status: "completed",
++      already_completed: false,
++    });
++  } catch (err) {
++    logger.error("Unhandled error in run route", {
++      job_id,
++      request_id,
++    });
++
++    // If we allocated a run_id, attempt to persist an immutable error report.
++    if (allocated_run_id && allocated_created_at && allocated_tier_config && allocated_script_fingerprint) {
++      const errorObj = createErrorObject({
++        code: "ANALYSIS_FAILED",
++        message: "Analysis failed",
++        stage: "persistence",
++        retryable: true,
++        request_id: allocated_run_id,
++        details: { job_id, run_id: allocated_run_id },
++      });
++
+       try {
+-        promptAOutput = runPromptA(job.script.text);
+-      } catch (promptAError) {
+-        logger.error("Prompt A execution failed", { 
+-          job_id, 
+-          run_id, 
+-          request_id,
+-          error: promptAError instanceof Error ? promptAError.message : "Unknown",
+-        });
+-        
+         await persistErrorReport({
+-          run_id,
++          run_id: allocated_run_id,
+           job_id,
+           user_id: STUB_USER_ID,
+-          tierConfig,
+-          scriptFingerprint,
+-          createdAt,
+-          errors: [
+-            createErrorObject({
+-              code: "PROMPT_A_FAILED",
+-              message: "Prompt A analysis failed",
+-              stage: "prompt_a",
+-              retryable: true,
+-              request_id: run_id,
+-            }),
+-          ],
+-        });
+-        
+-        return errorResponse(500, [
+-          createErrorObject({
+-            code: "PROMPT_A_FAILED",
+-            message: "Analysis failed during Prompt A",
+-            stage: "prompt_a",
+-            retryable: true,
+-            request_id,
+-          }),
+-        ]);
+-      }
+-
+-      logger.info("Prompt A completed", { 
+-        job_id, 
+-        run_id, 
+-        request_id,
+-        duration_ms: Date.now() - promptAStart,
+-        issue_count: promptAOutput.issue_candidates.length,
+-      });
+-
+-      // ====================================================================
+-      // PROMPT B
+-      // ====================================================================
+-      const promptBStart = Date.now();
+-      let promptBOutput;
+-      try {
+-        promptBOutput = runPromptB(job.script.text, promptAOutput, tierConfig);
+-      } catch (promptBError) {
+-        logger.error("Prompt B execution failed", { 
+-          job_id, 
+-          run_id, 
+-          request_id,
+-          error: promptBError instanceof Error ? promptBError.message : "Unknown",
+-        });
+-        
+-        await persistErrorReport({
+-          run_id,
+-          job_id,
+-          user_id: STUB_USER_ID,
+-          tierConfig,
+-          scriptFingerprint,
+-          createdAt,
+-          errors: [
+-            createErrorObject({
+-              code: "PROMPT_B_FAILED",
+-              message: "Prompt B analysis failed",
+-              stage: "prompt_b",
+-              retryable: true,
+-              request_id: run_id,
+-            }),
+-          ],
+-        });
+-        
+-        return errorResponse(500, [
+-          createErrorObject({
+-            code: "PROMPT_B_FAILED",
+-            message: "Analysis failed during Prompt B",
+-            stage: "prompt_b",
+-            retryable: true,
+-            request_id,
+-          }),
+-        ]);
+-      }
+-
+-      logger.info("Prompt B completed", { 
+-        job_id, 
+-        run_id, 
+-        request_id,
+-        duration_ms: Date.now() - promptBStart,
+-        punchup_count: promptBOutput.sections.punch_up_suggestions.length,
+-      });
+-
+-      // ====================================================================
+-      // VALIDATE PROMPT B REFERENCES (Truth Contract constraint)
+-      // ====================================================================
+-      const invalidIssueRefs = validatePromptBIssueReferences(promptAOutput, promptBOutput);
+-      if (invalidIssueRefs.length > 0) {
+-        logger.error("Prompt B contains invalid issue references", { 
+-          job_id, 
+-          run_id, 
+-          request_id,
+-          invalid_count: invalidIssueRefs.length,
+-        });
+-        
+-        await persistErrorReport({
+-          run_id,
+-          job_id,
+-          user_id: STUB_USER_ID,
+-          tierConfig,
+-          scriptFingerprint,
+-          createdAt,
+-          errors: [
+-            createErrorObject({
+-              code: "PROMPT_B_INVALID_ISSUE_REF",
+-              message: "Prompt B references issues not present in Prompt A",
+-              stage: "prompt_b_validation",
+-              retryable: false,
+-              request_id: run_id,
+-              details: { invalid_issue_ids: invalidIssueRefs },
+-            }),
+-          ],
+-        });
+-        
+-        return errorResponse(500, [
+-          createErrorObject({
+-            code: "PROMPT_B_INVALID_ISSUE_REF",
+-            message: "Prompt B validation failed: invalid issue references",
+-            stage: "prompt_b_validation",
+-            retryable: false,
+-            request_id,
+-          }),
+-        ]);
+-      }
+-
+-      const invalidMomentRefs = validatePromptBMomentReferences(promptAOutput, promptBOutput);
+-      if (invalidMomentRefs.length > 0) {
+-        logger.error("Prompt B contains invalid moment references", { 
+-          job_id, 
+-          run_id, 
+-          request_id,
+-          invalid_count: invalidMomentRefs.length,
+-        });
+-        
+-        await persistErrorReport({
+-          run_id,
+-          job_id,
+-          user_id: STUB_USER_ID,
+-          tierConfig,
+-          scriptFingerprint,
+-          createdAt,
+-          errors: [
+-            createErrorObject({
+-              code: "PROMPT_B_INVALID_ISSUE_REF",
+-              message: "Prompt B references moments not present in Prompt A",
+-              stage: "prompt_b_validation",
+-              retryable: false,
+-              request_id: run_id,
+-              details: { invalid_moment_ids: invalidMomentRefs },
+-            }),
+-          ],
+-        });
+-        
+-        return errorResponse(500, [
+-          createErrorObject({
+-            code: "PROMPT_B_INVALID_ISSUE_REF",
+-            message: "Prompt B validation failed: invalid moment references",
+-            stage: "prompt_b_validation",
+-            retryable: false,
+-            request_id,
+-          }),
+-        ]);
+-      }
+-
+-      // ====================================================================
+-      // BUILD FINAL OUTPUT
+-      // ====================================================================
+-      const finalOutput: FinalOutput = {
+-        schema_version: SCHEMA_VERSION,
+-        run: {
+-          run_id,
+-          created_at: createdAt,
+-          tier_config: tierConfig,
+-          script_fingerprint: scriptFingerprint,
+-        },
+-        prompt_a: promptAOutput,
+-        prompt_b: promptBOutput,
+-      };
+-
+-      // ====================================================================
+-      // VALIDATE FINAL OUTPUT AGAINST SCHEMA
+-      // ====================================================================
+-      const validationResult = FinalOutputSchema.safeParse(finalOutput);
+-      if (!validationResult.success) {
+-        logger.error("Final output validation failed", { 
+-          job_id, 
+-          run_id,
+-          request_id,
+-          error_count: validationResult.error.errors.length,
+-        });
+-        
+-        await persistErrorReport({
+-          run_id,
+-          job_id,
+-          user_id: STUB_USER_ID,
+-          tierConfig,
+-          scriptFingerprint,
+-          createdAt,
+-          errors: [
+-            createErrorObject({
+-              code: "OUTPUT_VALIDATION_FAILED",
+-              message: "Final output schema validation failed",
+-              stage: "prompt_b_validation",
+-              retryable: false,
+-              request_id: run_id,
+-              details: { 
+-                validation_errors: validationResult.error.errors.map(e => ({
+-                  path: e.path.join("."),
+-                  message: e.message,
+-                })),
+-              },
+-            }),
+-          ],
+-        });
+-        
+-        return errorResponse(500, [
+-          createErrorObject({
+-            code: "OUTPUT_VALIDATION_FAILED",
+-            message: "Output validation failed",
+-            stage: "prompt_b_validation",
+-            retryable: false,
+-            request_id,
+-          }),
+-        ]);
+-      }
+-
+-      // ====================================================================
+-      // PERSIST REPORT (immutable)
+-      // ====================================================================
+-      try {
+-        await prisma.$transaction([
+-          prisma.analysisReport.create({
+-            data: {
+-              id: run_id,
+-              job_id: job.id,
+-              user_id: STUB_USER_ID,
+-              schema_version: SCHEMA_VERSION,
+-              output: finalOutput,
+-            },
+-          }),
+-          prisma.analysisJob.update({
+-            where: { id: job_id },
+-            data: {
+-              status: "completed",
+-              completed_at: new Date(),
+-            },
+-          }),
+-        ]);
+-      } catch (persistError) {
+-        logger.error("Persistence failed", { 
+-          job_id, 
+-          run_id,
+-          request_id,
+-          error: persistError instanceof Error ? persistError.message : "Unknown",
+-        });
+-        
+-        // Attempt to persist error report (may also fail)
+-        try {
+-          await persistErrorReport({
+-            run_id,
+-            job_id,
+-            user_id: STUB_USER_ID,
+-            tierConfig,
+-            scriptFingerprint,
+-            createdAt,
+-            errors: [
+-              createErrorObject({
+-                code: "PERSISTENCE_FAILED",
+-                message: "Failed to persist analysis report",
+-                stage: "persistence",
+-                retryable: true,
+-                request_id: run_id,
+-              }),
+-            ],
+-          });
+-        } catch {
+-          // If even error persistence fails, just log and return error
+-          logger.error("Error persistence also failed", { job_id, run_id, request_id });
+-        }
+-        
+-        return errorResponse(500, [
+-          createErrorObject({
+-            code: "PERSISTENCE_FAILED",
+-            message: "Failed to persist analysis report",
+-            stage: "persistence",
+-            retryable: true,
+-            request_id,
+-          }),
+-        ]);
+-      }
+-
+-      logger.info("Job completed successfully", { 
+-        job_id, 
+-        run_id, 
+-        request_id,
+-        total_duration_ms: Date.now() - new Date(createdAt).getTime(),
+-      });
+-
+-      endTimer();
+-
+-      return NextResponse.json({
+-        job_id: job.id,
+-        run_id,
+-        status: "completed",
+-        already_completed: false,
+-      });
+-
+-    } catch (analysisError) {
+-      // Catch-all for unexpected errors during analysis
+-      logger.error("Unexpected analysis error", { 
+-        job_id, 
+-        run_id,
+-        request_id,
+-        error: analysisError instanceof Error ? analysisError.message : "Unknown",
+-      });
+-      
+-      try {
+-        await persistErrorReport({
+-          run_id,
+-          job_id,
+-          user_id: STUB_USER_ID,
+-          tierConfig,
+-          scriptFingerprint,
+-          createdAt,
+-          errors: [
+-            createErrorObject({
+-              code: "ANALYSIS_FAILED",
+-              message: "Unexpected error during analysis",
+-              stage: "prompt_a",
+-              retryable: true,
+-              request_id: run_id,
+-            }),
+-          ],
++          tierConfig: allocated_tier_config,
++          scriptFingerprint: allocated_script_fingerprint,
++          createdAt: allocated_created_at,
++          errors: [errorObj],
++          promptA: partial_prompt_a,
++          promptB: partial_prompt_b,
+         });
+       } catch {
+-        logger.error("Error persistence failed", { job_id, run_id, request_id });
++        // If DB is unavailable, we can only return the error response.
+       }
+-      
+-      return errorResponse(500, [
+-        createErrorObject({
+-          code: "ANALYSIS_FAILED",
+-          message: "Analysis failed unexpectedly",
+-          stage: "prompt_a",
+-          retryable: true,
+-          request_id,
+-        }),
+-      ]);
+-    }
+-
+-  } catch (error) {
+-    // Top-level catch for database errors before run_id allocation
+-    logger.error("Failed to run job", { 
+-      job_id,
+-      user_id: STUB_USER_ID,
+-      request_id,
+-      error: error instanceof Error ? error.message : "Unknown",
+-    });
+-    
++
++      endTimer();
++      return errorResponse(500, [errorObj]);
++    }
++
++    endTimer();
+     return errorResponse(500, [
+       createErrorObject({
+         code: "INTERNAL_ERROR",
+         message: "Internal server error",
+-        stage: "input_validation",
++        stage: "persistence",
+         retryable: true,
+         request_id,
++        details: { job_id },
+       }),
+     ]);
+   }
+-}
++}
+--- a/src/lib/api-errors.ts
++++ b/src/lib/api-errors.ts
+@@ -1,18 +1,13 @@
+ import { NextResponse } from "next/server";
+-import type { 
+-  ErrorObject, 
+-  AnalysisStageType, 
+-  ErrorCodeType,
+-  ApiErrorResponse 
+-} from "./types";
++import type { ErrorObject, AnalysisStageType, ApiErrorResponse } from "./types";
+ 
+ /**
+  * Create an ErrorObject conforming to Truth Contract schema.
+- * 
++ *
+  * SECURITY: Never include raw script text in details.
+  */
+ export function createErrorObject(params: {
+-  code: ErrorCodeType;
++  code: string;
+   message: string;
+   stage: AnalysisStageType;
+   retryable: boolean;
+@@ -25,30 +20,17 @@
+     stage: params.stage,
+     retryable: params.retryable,
+     request_id: params.request_id,
+-    details: params.details,
++    details: params.details ?? {},
+   };
+ }
+ 
+ /**
+- * Create a standardized API error response.
++ * Standardized API error response wrapper.
+  */
+-export function createApiErrorResponse(errors: ErrorObject[]): ApiErrorResponse {
+-  return { errors };
++export function errorResponse(status: number, errors: ErrorObject[]): NextResponse<ApiErrorResponse> {
++  return NextResponse.json({ errors }, { status });
+ }
+ 
+-/**
+- * Return a NextResponse with standardized error format.
+- */
+-export function errorResponse(
+-  status: number,
+-  errors: ErrorObject[]
+-): NextResponse<ApiErrorResponse> {
+-  return NextResponse.json(createApiErrorResponse(errors), { status });
+-}
+-
+-/**
+- * Create a simple validation error for request parsing.
+- */
+ export function validationError(
+   message: string,
+   request_id: string,
+@@ -64,42 +46,35 @@
+   });
+ }
+ 
+-/**
+- * Create an internal error object.
+- */
++export function notFoundError(resource: string, request_id: string): ErrorObject {
++  return createErrorObject({
++    code: "NOT_FOUND",
++    message: `${resource} not found`,
++    stage: "input_validation",
++    retryable: false,
++    request_id,
++    details: {},
++  });
++}
++
+ export function internalError(
+   message: string,
+   request_id: string,
+-  stage: AnalysisStageType = "input_validation"
++  details?: Record<string, unknown>
+ ): ErrorObject {
+   return createErrorObject({
+     code: "INTERNAL_ERROR",
+     message,
+-    stage,
++    stage: "persistence",
+     retryable: true,
+     request_id,
+-  });
+-}
+-
+-/**
+- * Create a not found error object.
+- */
+-export function notFoundError(
+-  resource: string,
+-  request_id: string
+-): ErrorObject {
+-  return createErrorObject({
+-    code: "INPUT_VALIDATION_FAILED",
+-    message: `${resource} not found`,
+-    stage: "input_validation",
+-    retryable: false,
+-    request_id,
++    details,
+   });
+ }
+ 
+ /**
+  * Generate a request ID for tracking.
+- * In production, this could be from headers or generated UUID.
++ * In production, this could be from headers or a UUID.
+  */
+ export function generateRequestId(): string {
+   return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+--- a/src/app/api/health/route.ts
++++ b/src/app/api/health/route.ts
+@@ -7,48 +7,37 @@
+ // Required for Prisma on Vercel serverless
+ export const runtime = "nodejs";
+ 
+-interface HealthResponse {
+-  ok: boolean;
+-  timestamp: string;
+-  errors?: ErrorObject[];
+-}
++type HealthOk = { ok: true };
++type HealthFail = { ok: false; errors: ErrorObject[] };
+ 
+ /**
+  * GET /api/health
+- * 
+- * Health check endpoint that verifies database connectivity.
++ *
++ * Minimal DB connectivity check.
+  */
+-export async function GET(): Promise<NextResponse<HealthResponse>> {
++export async function GET(): Promise<NextResponse<HealthOk | HealthFail>> {
+   const request_id = generateRequestId();
+-  const timestamp = new Date().toISOString();
++  const endTimer = logger.startTimer("GET /api/health", { request_id });
+ 
+   try {
+-    // Simple database connectivity check
++    // Simple query; doesn't require any table rows
+     await prisma.$queryRaw`SELECT 1`;
+ 
+-    logger.info("Health check passed", { request_id });
+-
+-    return NextResponse.json({
+-      ok: true,
+-      timestamp,
+-    });
+-  } catch (error) {
+-    logger.error("Health check failed", { 
+-      request_id,
+-      error: error instanceof Error ? error.message : "Unknown",
+-    });
+-
++    endTimer();
++    return NextResponse.json({ ok: true });
++  } catch {
++    endTimer();
+     return NextResponse.json(
+       {
+         ok: false,
+-        timestamp,
+         errors: [
+           createErrorObject({
+             code: "INTERNAL_ERROR",
+             message: "Database connectivity check failed",
+-            stage: "input_validation",
++            stage: "persistence",
+             retryable: true,
+             request_id,
++            details: {},
+           }),
+         ],
+       },
+
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,30 +1,38 @@
+ export default function Home() {
+   return (
+     <main style={{ padding: "2rem", fontFamily: "system-ui, sans-serif", maxWidth: "900px", margin: "0 auto" }}>
+-      <h1>🎭 Laugh Lab API - Slice 0</h1>
+-      <p>AI-powered comedy script analysis backend. Truth Contract v1.0.0 compliant.</p>
+-      
++      <h1>Laugh Lab API - Slice 0</h1>
++      <p>Next.js (App Router) + Prisma + Neon backend. Truth Contract v1.0.0 compliant output (stubbed user; no auth/payments; no real LLM calls).</p>
++
+       <h2>API Endpoints</h2>
+-      
++
+       <section style={{ marginBottom: "1.5rem" }}>
+         <h3>GET /api/health</h3>
+-        <p>Health check endpoint.</p>
++        <p>Minimal health check (DB connectivity).</p>
+         <pre style={{ background: "#f4f4f4", padding: "1rem", borderRadius: "4px", overflow: "auto" }}>
+ {`// Response (200)
+-{ "ok": true, "timestamp": "2024-01-01T00:00:00.000Z" }
+-
+-// Response (503) - Database unavailable
++{ "ok": true }
++
++// Response (503)
+ {
+   "ok": false,
+-  "timestamp": "2024-01-01T00:00:00.000Z",
+-  "errors": [{ "code": "INTERNAL_ERROR", "message": "...", "stage": "...", ... }]
++  "errors": [
++    {
++      "code": "INTERNAL_ERROR",
++      "message": "Database connectivity check failed",
++      "stage": "persistence",
++      "retryable": true,
++      "request_id": "req_...",
++      "details": {}
++    }
++  ]
+ }`}
+         </pre>
+       </section>
+ 
+       <section style={{ marginBottom: "1.5rem" }}>
+         <h3>POST /api/scripts</h3>
+-        <p>Submit a script for analysis.</p>
++        <p>Submit script text (stored for Slice-0). Returns script_id.</p>
+         <pre style={{ background: "#f4f4f4", padding: "1rem", borderRadius: "4px", overflow: "auto" }}>
+ {`// Request
+ { "text": "Your comedy script text here..." }
+@@ -34,19 +42,16 @@
+   "id": "uuid",
+   "user_id": "test-user-1",
+   "created_at": "2024-01-01T00:00:00.000Z"
+-}
+-
+-// Error Response (4xx/5xx)
+-{ "errors": [{ "code": "...", "message": "...", "stage": "...", "retryable": bool, "request_id": "..." }] }`}
++}`}
+         </pre>
+       </section>
+ 
+       <section style={{ marginBottom: "1.5rem" }}>
+         <h3>POST /api/jobs</h3>
+-        <p>Create an analysis job for a script.</p>
++        <p>Create an analysis job for a submitted script. Returns job_id.</p>
+         <pre style={{ background: "#f4f4f4", padding: "1rem", borderRadius: "4px", overflow: "auto" }}>
+ {`// Request
+-{ "script_id": "uuid-from-scripts-endpoint" }
++{ "script_id": "uuid" }
+ 
+ // Response (201)
+ {
+@@ -64,7 +69,7 @@
+ 
+       <section style={{ marginBottom: "1.5rem" }}>
+         <h3>POST /api/jobs/[job_id]/run</h3>
+-        <p>Execute the analysis job. Idempotent: returns existing run_id if already completed.</p>
++        <p>Run Slice-0 analysis (Prompt A → Prompt B). Idempotent for completed jobs.</p>
+         <pre style={{ background: "#f4f4f4", padding: "1rem", borderRadius: "4px", overflow: "auto" }}>
+ {`// Response (200)
+ {
+@@ -77,28 +82,10 @@
+       </section>
+ 
+       <section style={{ marginBottom: "1.5rem" }}>
+-        <h3>GET /api/jobs/[job_id]</h3>
+-        <p>Get job status and details.</p>
+-        <pre style={{ background: "#f4f4f4", padding: "1rem", borderRadius: "4px", overflow: "auto" }}>
++        <h3>GET /api/reports/[run_id]</h3>
++        <p>Retrieve the immutable report. Output conforms to the Truth Contract Final Output schema.</p>
++        <pre style={{ background: "#f4f4f4", padding: "1rem", borderRadius: "4px", overflow: "auto", fontSize: "0.85em" }}>
+ {`// Response (200)
+-{
+-  "id": "uuid",
+-  "script_id": "uuid",
+-  "user_id": "test-user-1",
+-  "status": "pending|running|completed|failed",
+-  "run_id": "uuid|null",
+-  "created_at": "...",
+-  "started_at": "...|null",
+-  "completed_at": "...|null"
+-}`}
+-        </pre>
+-      </section>
+-
+-      <section style={{ marginBottom: "1.5rem" }}>
+-        <h3>GET /api/reports/[run_id]</h3>
+-        <p>Retrieve the immutable analysis report (Truth Contract v1.0.0).</p>
+-        <pre style={{ background: "#f4f4f4", padding: "1rem", borderRadius: "4px", overflow: "auto", fontSize: "0.85em" }}>
+-{`// Response (200) - Success
+ {
+   "id": "uuid",
+   "job_id": "uuid",
+@@ -109,110 +96,105 @@
+       "run_id": "uuid",
+       "created_at": "2024-01-01T00:00:00.000Z",
+       "tier_config": {
+-        "depth_level": "standard",
+-        "max_issues": 5,
++        "depth_level": "pro",
++        "max_issues": 4,
+         "punch_up_moments": 3,
+-        "options_per_moment": 2,
+-        "metrics_verbosity": "standard",
+-        "revision_guidance_level": "moderate"
++        "options_per_moment": 3,
++        "metrics_verbosity": "interpretive",
++        "revision_guidance_level": "time_boxed"
+       },
+       "script_fingerprint": {
+         "input_hash": "sha256...",
+-        "word_count": 500,
+-        "estimated_pages": 2.0,
+-        "inferred_format": "standup",
+-        "tier_compatibility": "pro"
++        "word_count": 6500,
++        "estimated_pages": 26.0,
++        "inferred_format": "half_hour",
++        "tier_compatibility": "ok"
+       }
+     },
+     "prompt_a": {
+-      "classification": { "inferred_format": "standup", "word_count": 500, ... },
++      "classification": {
++        "inferred_format": "half_hour",
++        "word_count": 6500,
++        "estimated_pages": 26.0,
++        "tier_compatibility": "ok"
++      },
+       "metrics": {
+-        "overall_score": 72,
+-        "lpm_intermediate_plus": 4.5,
+-        "lines_per_joke": 8.2,
+-        "peak_moments": [{ "moment_id": "PKM_...", "location": "...", ... }],
+-        "character_balance": [...],
+-        "retention_risk": { "risk_level": "low", "factors": [...] }
++        "overall_score": 72.4,
++        "lpm_intermediate_plus": 3.6,
++        "lines_per_joke": 6.0,
++        "peak_moments": [
++          {
++            "moment_id": "moment_1_aaaaaaaa",
++            "label": "Early hook",
++            "location": { "type": "line_range", "value": "L10-L18" },
++            "reason_tag": "surprise"
++          }
++        ],
++        "character_balance": {
++          "ensemble_balance": 0.72,
++          "dominant_character": "CHAR_A",
++          "characters": [
++            { "name": "CHAR_A", "joke_share": 0.45, "line_share": 0.5, "underutilized": false }
++          ]
++        },
++        "retention_risk": {
++          "overall_risk": "medium",
++          "indicators": [
++            { "indicator_id": "indicator_1_aaaaaaaa", "type": "gap_cluster", "location": { "type": "line_range", "value": "L85-L110" }, "severity": "moderate" }
++          ]
++        }
+       },
+-      "issue_candidates": [{
+-        "issue_id": "ISS_...",
+-        "type": "timing|structure|punchline|...",
+-        "location": { "type": "line_range", "value": "5-8" },
+-        "severity": "low|medium|high",
+-        "tags": ["pacing", "opening"],
+-        "evidence": { "quote_snippet": "...", "metric_refs": ["overall_score"] }
+-      }]
++      "issue_candidates": [
++        {
++          "issue_id": "issue_1_aaaaaaaa",
++          "type": "pacing_soft_spot",
++          "location": { "type": "line_range", "value": "L85-L110" },
++          "severity": "moderate",
++          "tags": ["pacing", "momentum"],
++          "evidence": { "quote_snippet": "Snippet withheld in Slice-0 (pacing soft spot).", "metric_refs": ["lines_per_joke"] }
++        }
++      ]
+     },
+     "prompt_b": {
+       "sections": {
+-        "comedy_metrics_snapshot": { "bullets": [...], "notes": "..." },
+-        "strengths_to_preserve": [{ "strength_id": "...", "description": "..." }],
+-        "whats_getting_in_the_way": [{
+-          "issue_id": "ISS_...",  // Must reference prompt_a.issue_candidates
+-          "why_it_matters": "...",
+-          "concrete_fix": { "title": "...", "steps": [...], "expected_result": "..." }
+-        }],
+-        "recommended_fixes": [{ "issue_id": "ISS_...", "fix": "..." }],
+-        "punch_up_suggestions": [{
+-          "moment_id": "PKM_...",  // Must reference prompt_a.metrics.peak_moments
+-          "moment_context": "...",
+-          "options": [{ "option_id": "...", "device": "callback", "text": "..." }]
+-        }],
++        "comedy_metrics_snapshot": {
++          "bullets": ["Overall score: 72.4/100"],
++          "notes": "Deterministic Slice-0 placeholders (no external calls)."
++        },
++        "strengths_to_preserve": ["Clear premise signal early."],
++        "whats_getting_in_the_way": [
++          {
++            "issue_id": "issue_1_aaaaaaaa",
++            "why_it_matters": "This creates a local dip in momentum and reduces payoff clarity.",
++            "concrete_fix": {
++              "title": "Fix 1: tighten and escalate",
++              "steps": ["Trim one beat that restates the same idea."],
++              "expected_result": "Faster pace, clearer progression, stronger payoff density."
++            }
++          }
++        ],
++        "recommended_fixes": [{ "issue_id": "issue_1_aaaaaaaa", "fix": "Apply the concrete fix steps above; keep the change localized to the tagged location." }],
++        "punch_up_suggestions": [
++          {
++            "moment_id": "moment_1_aaaaaaaa",
++            "moment_context": "Early hook (L10-L18)",
++            "options": [{ "option_id": "opt_1_1_bbbbbbbb", "device": "misdirection", "text": "Slice-0 placeholder punch-up option 1 for Early hook." }]
++          }
++        ],
+         "how_to_revise_this_efficiently": {
+-          "revision_plan": { "mode": "quick_pass|deep_revision|rewrite", "steps": [...] }
++          "revision_plan": {
++            "mode": "time_boxed",
++            "steps": [{ "step": "Pass 1: Fix the top issues in order.", "timebox_minutes": 25 }]
++          }
+         }
+       }
+     },
+-    "warnings": []  // Optional
+-  },
+-  "created_at": "2024-01-01T00:00:00.000Z"
+-}
+-
+-// Response (200) - Failed analysis (error persisted)
+-{
+-  "id": "uuid",
+-  "job_id": "uuid", 
+-  "schema_version": "1.0.0",
+-  "output": {
+-    "schema_version": "1.0.0",
+-    "run": { ... },
+-    "errors": [{
+-      "code": "PROMPT_A_FAILED|PROMPT_B_INVALID_ISSUE_REF|...",
+-      "message": "...",
+-      "stage": "prompt_a|prompt_b|prompt_b_validation|persistence",
+-      "retryable": true|false,
+-      "request_id": "...",
+-      "details": { ... }  // Never contains raw script text
+-    }]
+-  },
+-  "created_at": "..."
+-}`}
+-        </pre>
+-      </section>
+-
+-      <h2>Truth Contract Constraints</h2>
+-      <ul style={{ lineHeight: "1.8" }}>
+-        <li><strong>schema_version:</strong> Always &quot;1.0.0&quot;</li>
+-        <li><strong>Prompt B references:</strong> All <code>issue_id</code> in prompt_b must exist in prompt_a.issue_candidates</li>
+-        <li><strong>Moment references:</strong> All <code>moment_id</code> in punch_up_suggestions must exist in prompt_a.metrics.peak_moments</li>
+-        <li><strong>Immutable reports:</strong> Once created, reports are never modified</li>
+-        <li><strong>Error persistence:</strong> Failed analyses store error reports (not just HTTP errors)</li>
+-        <li><strong>No raw script in logs:</strong> Only IDs, lengths, and timings are logged</li>
+-      </ul>
+-
+-      <h2>Error Codes</h2>
+-      <ul style={{ lineHeight: "1.8" }}>
+-        <li><code>INPUT_VALIDATION_FAILED</code> - Invalid request data</li>
+-        <li><code>PROMPT_A_FAILED</code> - Prompt A analysis error</li>
+-        <li><code>PROMPT_B_FAILED</code> - Prompt B analysis error</li>
+-        <li><code>PROMPT_B_INVALID_ISSUE_REF</code> - Prompt B references non-existent issue/moment</li>
+-        <li><code>OUTPUT_VALIDATION_FAILED</code> - Final output schema validation failed</li>
+-        <li><code>PERSISTENCE_FAILED</code> - Database write failed</li>
+-        <li><code>INTERNAL_ERROR</code> - Unexpected server error</li>
+-      </ul>
+-
+-      <h2>Stages</h2>
+-      <p>Analysis stages for error tracking: <code>input_validation</code> → <code>prompt_a</code> → <code>prompt_a_validation</code> → <code>prompt_b</code> → <code>prompt_b_validation</code> → <code>persistence</code></p>
++    "warnings": [],
++    "errors": []
++  }
++}`}
++        </pre>
++      </section>
+     </main>
+   );
+ }

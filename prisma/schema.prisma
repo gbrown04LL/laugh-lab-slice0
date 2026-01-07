@@ -1,0 +1,66 @@
+// Laugh Lab Slice-0 Prisma Schema
+// Database: Neon Postgres
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model ScriptSubmission {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.VarChar(255)
+  text       String   @db.Text
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+
+  jobs AnalysisJob[]
+
+  @@index([user_id])
+  @@map("script_submissions")
+}
+
+model AnalysisJob {
+  id        String    @id @default(uuid()) @db.Uuid
+  script_id String    @db.Uuid
+  user_id   String    @db.VarChar(255)
+  status    JobStatus @default(pending)
+  run_id    String?   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+  started_at DateTime? @db.Timestamptz
+  completed_at DateTime? @db.Timestamptz
+
+  script ScriptSubmission @relation(fields: [script_id], references: [id], onDelete: Cascade)
+  report AnalysisReport?
+
+  @@index([user_id])
+  @@index([script_id])
+  @@index([status])
+  @@map("analysis_jobs")
+}
+
+model AnalysisReport {
+  id             String   @id @default(uuid()) @db.Uuid
+  job_id         String   @unique @db.Uuid
+  user_id        String   @db.VarChar(255)
+  schema_version String   @db.VarChar(20)
+  output         Json     @db.JsonB
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  job AnalysisJob @relation(fields: [job_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@map("analysis_reports")
+}
+
+enum JobStatus {
+  pending
+  running
+  completed
+  failed
+}
