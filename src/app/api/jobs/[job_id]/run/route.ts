@@ -161,7 +161,7 @@ async function persistErrorReport(params: {
         job_id: params.job_id,
         user_id: params.user_id,
         schema_version: SCHEMA_VERSION,
-        output,
+        output: output as any,
       },
     }),
     prisma.analysisJob.update({
