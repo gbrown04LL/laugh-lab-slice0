@@ -8,7 +8,6 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
@@ -32,6 +31,6 @@
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": "18.17.x"
+    "node": "24.x"
   }
 }
