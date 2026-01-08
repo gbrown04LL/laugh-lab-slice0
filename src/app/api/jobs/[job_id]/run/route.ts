@@ -16,7 +16,8 @@ import {
   type PromptAOutput,
   type PromptBOutput,
 } from "@/lib/types";
-import { runPromptA, runPromptB } from "@/lib/prompts";
+import { PROMPT_A_SYSTEM, PROMPT_B_SYSTEM } from "@/lib/prompts";
+import { callOpenAI } from "@/lib/openai";
 import { createErrorObject, errorResponse, generateRequestId } from "@/lib/api-errors";
 import logger from "@/lib/logger";
 
@@ -104,27 +105,6 @@ function getDefaultTierConfig(): TierConfig {
     metrics_verbosity: "interpretive",
     revision_guidance_level: "time_boxed",
   };
-}
-
-function extractPromptBIssueIds(promptB: PromptBOutput): string[] {
-  const ids: string[] = [];
-  for (const row of promptB.sections.whats_getting_in_the_way) ids.push(row.issue_id);
-  for (const row of promptB.sections.recommended_fixes) ids.push(row.issue_id);
-  return ids;
-}
-
-function extractPromptBMomentIds(promptB: PromptBOutput): string[] {
-  return promptB.sections.punch_up_suggestions.map((p) => p.moment_id);
-}
-
-function validatePromptBReferences(promptA: PromptAOutput, promptB: PromptBOutput) {
-  const issueSet = new Set(promptA.issue_candidates.map((i) => i.issue_id));
-  const momentSet = new Set(promptA.metrics.peak_moments.map((m) => m.moment_id));
-
-  const invalidIssues = extractPromptBIssueIds(promptB).filter((id) => !issueSet.has(id));
-  const invalidMoments = extractPromptBMomentIds(promptB).filter((id) => !momentSet.has(id));
-
-  return { invalidIssues, invalidMoments };
 }
 
 /**
@@ -321,14 +301,23 @@ createErrorObject({
     // Stage: Prompt A
     let promptA: PromptAOutput | undefined;
     try {
-      promptA = runPromptA(scriptText);
+      // Real OpenAI call for Prompt A
+      const rawPromptA = await callOpenAI(PROMPT_A_SYSTEM, scriptText);
+      
+      // Validate Prompt A output
+      const validationA = PromptAOutputSchema.safeParse(rawPromptA);
+      if (!validationA.success) {
+        throw new Error(`Prompt A validation failed: ${validationA.error.message}`);
+      }
+      
+      promptA = validationA.data;
       partial_prompt_a = promptA;
     } catch (err) {
       logger.error("Prompt A failed", {
         job_id,
         run_id,
         request_id,
-        // No script content in logs
+        error: err instanceof Error ? err.message : String(err),
       });
 
       const errorObj = createErrorObject({
@@ -337,7 +326,7 @@ createErrorObject({
         stage: "prompt_a",
         retryable: true,
         request_id: run_id,
-        details: { job_id, run_id },
+        details: { job_id, run_id, error: err instanceof Error ? err.message : String(err) },
       });
 
       await persistErrorReport({
@@ -351,63 +340,34 @@ createErrorObject({
       });
 
       endTimer();
-      return errorResponse(500, [
-errorObj
-    ]);
-    }
-
-    // Stage: Prompt A validation (schema)
-    const promptAValidation = PromptAOutputSchema.safeParse(promptA);
-    if (!promptAValidation.success) {
-      logger.error("Prompt A validation failed", {
-        job_id,
-        run_id,
-        request_id,
-        issue_count: promptA.issue_candidates?.length ?? 0,
-      });
-
-      const errorObj = createErrorObject({
-        code: "PROMPT_A_VALIDATION_FAILED",
-        message: "Prompt A output failed validation",
-        stage: "prompt_a_validation",
-        retryable: false,
-        request_id: run_id,
-        details: {
-          job_id,
-          run_id,
-          zod_issues: promptAValidation.error.issues.map((i) => ({
-            path: i.path.join("."),
-            message: i.message,
-          })),
-        },
-      });
-
-      await persistErrorReport({
-        run_id,
-        job_id: job.id,
-        user_id: STUB_USER_ID,
-        tierConfig,
-        scriptFingerprint,
-        createdAt,
-        errors: [errorObj],
-      });
-
-      endTimer();
-      return errorResponse(500, [
-errorObj
-    ]);
+      return errorResponse(500, [errorObj]);
     }
 
     // Stage: Prompt B
     let promptB: PromptBOutput | undefined;
     try {
-      promptB = runPromptB(scriptText, promptA, tierConfig);
+      // Real OpenAI call for Prompt B
+      const promptBInput = {
+        script: scriptText,
+        analysis_a: promptA,
+        config: tierConfig,
+      };
+      const rawPromptB = await callOpenAI(PROMPT_B_SYSTEM, promptBInput);
+      
+      // Validate Prompt B output
+      const validationB = PromptBOutputSchema.safeParse(rawPromptB);
+      if (!validationB.success) {
+        throw new Error(`Prompt B validation failed: ${validationB.error.message}`);
+      }
+      
+      promptB = validationB.data;
       partial_prompt_b = promptB;
     } catch (err) {
       logger.error("Prompt B failed", {
         job_id,
         run_id,
         request_id,
+        error: err instanceof Error ? err.message : String(err),
       });
 
       const errorObj = createErrorObject({
@@ -416,7 +376,7 @@ errorObj
         stage: "prompt_b",
         retryable: true,
         request_id: run_id,
-        details: { job_id, run_id },
+        details: { job_id, run_id, error: err instanceof Error ? err.message : String(err) },
       });
 
       await persistErrorReport({
@@ -431,94 +391,7 @@ errorObj
       });
 
       endTimer();
-      return errorResponse(500, [
-errorObj
-    ]);
-    }
-
-    // Stage: Prompt B validation (schema)
-    const promptBValidation = PromptBOutputSchema.safeParse(promptB);
-    if (!promptBValidation.success) {
-      logger.error("Prompt B validation failed", {
-        job_id,
-        run_id,
-        request_id,
-      });
-
-      const errorObj = createErrorObject({
-        code: "PROMPT_B_VALIDATION_FAILED",
-        message: "Prompt B output failed validation",
-        stage: "prompt_b",
-        retryable: false,
-        request_id: run_id,
-        details: {
-          job_id,
-          run_id,
-          zod_issues: promptBValidation.error.issues.map((i) => ({
-            path: i.path.join("."),
-            message: i.message,
-          })),
-        },
-      });
-
-      await persistErrorReport({
-        run_id,
-        job_id: job.id,
-        user_id: STUB_USER_ID,
-        tierConfig,
-        scriptFingerprint,
-        createdAt,
-        errors: [errorObj],
-        promptA,
-      });
-
-      endTimer();
-      return errorResponse(500, [
-errorObj
-    ]);
-    }
-
-    // Enforce: Prompt B MUST NOT introduce new issues (runtime enforcement)
-    const { invalidIssues, invalidMoments } = validatePromptBReferences(promptA, promptB);
-    if (invalidIssues.length > 0 || invalidMoments.length > 0) {
-      logger.error("Prompt B contains invalid references", {
-        job_id,
-        run_id,
-        request_id,
-        invalid_issue_count: invalidIssues.length,
-        invalid_moment_count: invalidMoments.length,
-      });
-
-      const errorObj = createErrorObject({
-        code: "OUTPUT_VALIDATION_FAILED",
-        message: "Prompt B contains references not present in Prompt A",
-        stage: "prompt_a_validation",
-        retryable: false,
-        request_id: run_id,
-        details: {
-          job_id,
-          run_id,
-          invalid_issue_ids: invalidIssues,
-          invalid_moment_ids: invalidMoments,
-        },
-      });
-
-      await persistErrorReport({
-        run_id,
-        job_id: job.id,
-        user_id: STUB_USER_ID,
-        tierConfig,
-        scriptFingerprint,
-        createdAt,
-        errors: [errorObj],
-        promptA,
-        promptB,
-      });
-
-      endTimer();
-      return errorResponse(500, [
-errorObj
-    ]);
+      return errorResponse(500, [errorObj]);
     }
 
     // Build final output (Truth Contract)
@@ -572,9 +445,7 @@ errorObj
       });
 
       endTimer();
-      return errorResponse(500, [
-errorObj
-    ]);
+      return errorResponse(500, [errorObj]);
     }
 
     // Persist report (immutable) + mark job completed
