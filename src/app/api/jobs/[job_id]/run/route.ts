@@ -585,7 +585,7 @@ errorObj
           job_id: job.id,
           user_id: STUB_USER_ID,
           schema_version: SCHEMA_VERSION,
-          output: validationResult.data,
+          output: validationResult.data as any,
         },
       }),
       prisma.analysisJob.update({
