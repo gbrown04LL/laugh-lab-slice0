@@ -35,14 +35,14 @@ export async function POST(
       logger.warn("Job validation failed", { 
         user_id: STUB_USER_ID,
         request_id,
-        error_count: parseResult.error.errors.length,
+        error_count: parseResult.error.issues.length,
       });
       return errorResponse(400, [
         validationError(
           "Validation failed",
           request_id,
           {
-            fields: parseResult.error.errors.map(e => ({
+            fields: parseResult.error.issues.map(e => ({
               path: e.path.join("."),
               message: e.message,
             })),
