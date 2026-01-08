@@ -85,7 +85,7 @@ export const ErrorObjectSchema = z.object({
   stage: AnalysisStage,
   retryable: z.boolean(),
   request_id: z.string(),
-  details: z.record(z.unknown()),
+  details: z.record(z.string(), z.unknown()),
 });
 
 // ============================================================================
