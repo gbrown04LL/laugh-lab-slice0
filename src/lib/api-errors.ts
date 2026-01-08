@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import type { ErrorObject, AnalysisStageType, ApiErrorResponse } from "./types";
 
+let requestCounter = 0;
+
 /**
  * Create an ErrorObject conforming to Truth Contract schema.
  *
@@ -77,5 +79,8 @@ export function internalError(
  * In production, this could be from headers or a UUID.
  */
 export function generateRequestId(): string {
-  return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const timestamp = Date.now().toString(36);
+  requestCounter = (requestCounter + 1) % 10000;
+  const counter = requestCounter.toString(36).padStart(3, "0");
+  return `req_${timestamp}_${counter}`;
 }
