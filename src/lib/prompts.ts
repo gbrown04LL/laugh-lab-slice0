@@ -87,6 +87,13 @@ function bounded01(seedHex: string, offset: number): number {
  * Slice-0 Prompt A generator (deterministic placeholders).
  * MUST be structure-only (no prose/coaching).
  */
+export const PROMPT_A_SYSTEM = `You are an expert comedy script analyst. Analyze the provided script and return a JSON object following the specified schema.
+Focus on structure, pacing, and joke density.
+Return a JSON object with:
+- classification: inferred format, word count, estimated pages, and tier compatibility.
+- metrics: overall score (0-100), LPM (Laughs Per Minute) intermediate+, lines per joke, peak moments (top 3), character balance, and retention risk.
+- issue_candidates: up to 4 potential issues with location, severity, tags, and evidence.`;
+
 export function runPromptA(scriptText: string): PromptAOutput {
   const wordCount = countWords(scriptText);
   const estimatedPages = estimatePages(wordCount);
@@ -213,6 +220,16 @@ export function runPromptA(scriptText: string): PromptAOutput {
  * Slice-0 Prompt B generator (deterministic placeholders).
  * MUST NOT introduce new issues beyond Prompt A.
  */
+export const PROMPT_B_SYSTEM = `You are an expert comedy script analyst. Based on the Prompt A analysis and the script, provide detailed feedback and fixes.
+Return a JSON object with:
+- sections:
+  - comedy_metrics_snapshot: bullets summarizing metrics and optional notes.
+  - strengths_to_preserve: array of strings.
+  - whats_getting_in_the_way: array of issues with issue_id, why it matters, and a concrete fix (title, steps, expected result).
+  - recommended_fixes: array of objects with issue_id and fix description.
+  - punch_up_suggestions: array of suggestions with moment_id, moment_context, and options (option_id, device, text).
+  - how_to_revise_this_efficiently: revision plan with mode and steps.`;
+
 export function runPromptB(
   scriptText: string,
   promptA: PromptAOutput,
