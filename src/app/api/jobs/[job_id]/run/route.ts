@@ -313,6 +313,11 @@ createErrorObject({
       promptA = validationA.data;
       partial_prompt_a = promptA;
     } catch (err) {
+      console.error("=== PROMPT A FAILED ===");
+      console.error("Error:", err);
+      console.error("Error message:", err instanceof Error ? err.message : String(err));
+      console.error("Stack:", err instanceof Error ? err.stack : "No stack");
+
       logger.error("Prompt A failed", {
         job_id,
         run_id,
@@ -363,6 +368,11 @@ createErrorObject({
       promptB = validationB.data;
       partial_prompt_b = promptB;
     } catch (err) {
+      console.error("=== PROMPT B FAILED ===");
+      console.error("Error:", err);
+      console.error("Error message:", err instanceof Error ? err.message : String(err));
+      console.error("Stack:", err instanceof Error ? err.stack : "No stack");
+
       logger.error("Prompt B failed", {
         job_id,
         run_id,
