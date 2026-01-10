@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { SCHEMA_VERSION } from "./types";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY?.trim(),
 });
 
 export async function callOpenAI(systemPrompt: string, userContent: any) {
