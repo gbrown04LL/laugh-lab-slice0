@@ -13,15 +13,21 @@ datasource db {
 }
 
 model ScriptSubmission {
-  id         String   @id @default(uuid()) @db.Uuid
-  user_id    String   @db.VarChar(255)
-  text       String   @db.Text
-  created_at DateTime @default(now()) @db.Timestamptz
-  updated_at DateTime @updatedAt @db.Timestamptz
+  id                 String   @id @default(uuid()) @db.Uuid
+  user_id            String   @db.VarChar(255)
+  text               String   @db.Text
+  input_hash         String   @db.VarChar(64)
+  word_count         Int
+  estimated_pages    Float
+  inferred_format    String   @db.VarChar(20)
+  tier_compatibility String?  @db.VarChar(20)
+  created_at         DateTime @default(now()) @db.Timestamptz
+  updated_at         DateTime @updatedAt @db.Timestamptz
 
   jobs AnalysisJob[]
 
   @@index([user_id])
+  @@index([input_hash])
   @@map("script_submissions")
 }
 

@@ -9,6 +9,7 @@ import {
   generateRequestId 
 } from "@/lib/api-errors";
 import logger from "@/lib/logger";
+import { computeScriptFingerprint } from "@/lib/fingerprint";
 
 // Required for Prisma on Vercel serverless
 export const runtime = "nodejs";
@@ -52,12 +53,20 @@ export async function POST(
 
     const { text } = parseResult.data;
 
+    // Compute fingerprint
+    const fingerprint = computeScriptFingerprint(text);
+
     // Create script submission
     // SECURITY: Only log text length, never raw content
     const script = await prisma.scriptSubmission.create({
       data: {
         user_id: STUB_USER_ID,
         text,
+        input_hash: fingerprint.input_hash,
+        word_count: fingerprint.word_count,
+        estimated_pages: fingerprint.estimated_pages,
+        inferred_format: fingerprint.inferred_format,
+        tier_compatibility: fingerprint.tier_compatibility,
       },
       select: {
         id: true,

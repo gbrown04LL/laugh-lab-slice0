@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import prisma from "@/lib/prisma";
 import {
@@ -20,6 +19,7 @@ import { PROMPT_A_SYSTEM, PROMPT_B_SYSTEM } from "@/lib/prompts";
 import { callOpenAI } from "@/lib/openai";
 import { createErrorObject, errorResponse, generateRequestId } from "@/lib/api-errors";
 import logger from "@/lib/logger";
+import { computeScriptFingerprint } from "@/lib/fingerprint";
 
 // Required for Prisma on Vercel serverless
 export const runtime = "nodejs";
@@ -27,73 +27,6 @@ export const runtime = "nodejs";
 type RouteParams = {
   params: Promise<{ job_id: string }>;
 };
-
-/**
- * Normalize script text for hashing/fingerprinting.
- * SECURITY: Never log this normalized text.
- */
-function normalizeForHash(text: string): string {
-  return text
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .replace(/\u00A0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function computeInputHash(text: string): string {
-  const normalized = normalizeForHash(text);
-  return createHash("sha256").update(normalized, "utf8").digest("hex");
-}
-
-function countWords(text: string): number {
-  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
-  if (!normalized) return 0;
-  return normalized.split(/\s+/).filter(Boolean).length;
-}
-
-function estimatePages(wordCount: number): number {
-  // Practical approximation: ~250 words per page, min 0.5
-  return Math.max(0.5, Math.round((wordCount / 250) * 10) / 10);
-}
-
-function inferFormat(wordCount: number, estimatedPages: number): ScriptFingerprint["inferred_format"] {
-  if (estimatedPages <= 8 || wordCount < 2000) return "scene";
-  if (estimatedPages <= 45) return "half_hour";
-  if (estimatedPages <= 75) return "hour";
-  return "feature";
-}
-
-function tierCompatibility(
-  inferred: ScriptFingerprint["inferred_format"],
-  wordCount: number
-): ScriptFingerprint["tier_compatibility"] {
-  const ranges: Record<ScriptFingerprint["inferred_format"], { min: number; max: number }> = {
-    scene: { min: 200, max: 6000 },
-    half_hour: { min: 2500, max: 15000 },
-    hour: { min: 5000, max: 25000 },
-    feature: { min: 10000, max: 50000 },
-  };
-
-  const r = ranges[inferred];
-  if (wordCount < r.min) return "too_short";
-  if (wordCount > r.max) return "too_long";
-  return "ok";
-}
-
-function computeScriptFingerprint(text: string): ScriptFingerprint {
-  const wc = countWords(text);
-  const pages = estimatePages(wc);
-  const inferred = inferFormat(wc, pages);
-
-  return {
-    input_hash: computeInputHash(text),
-    word_count: wc,
-    estimated_pages: pages,
-    inferred_format: inferred,
-    tier_compatibility: tierCompatibility(inferred, wc),
-  };
-}
 
 function getDefaultTierConfig(): TierConfig {
   // Slice-0 defaults: Pro tier, small limits, deterministic.
@@ -367,6 +300,53 @@ createErrorObject({
       
       promptB = validationB.data;
       partial_prompt_b = promptB;
+
+      // Primary Fix #2: Enforce Prompt B issue_id references match Prompt A issue_candidates
+      const allowedIssueIds = new Set(promptA.issue_candidates.map((c) => c.issue_id));
+      const missingIssueIds: string[] = [];
+
+      promptB.sections.whats_getting_in_the_way.forEach((item) => {
+        if (!allowedIssueIds.has(item.issue_id)) {
+          missingIssueIds.push(item.issue_id);
+        }
+      });
+
+      promptB.sections.recommended_fixes.forEach((item) => {
+        if (!allowedIssueIds.has(item.issue_id)) {
+          if (!missingIssueIds.includes(item.issue_id)) {
+            missingIssueIds.push(item.issue_id);
+          }
+        }
+      });
+
+      if (missingIssueIds.length > 0) {
+        const errorObj = createErrorObject({
+          code: "PROMPT_B_UNKNOWN_ISSUE_ID",
+          message: "Prompt B includes unknown issue_id references",
+          stage: "prompt_b",
+          retryable: false,
+          request_id: run_id,
+          details: {
+            missing_issue_ids: missingIssueIds,
+            allowed_issue_ids_count: allowedIssueIds.size,
+          },
+        });
+
+        await persistErrorReport({
+          run_id,
+          job_id: job.id,
+          user_id: STUB_USER_ID,
+          tierConfig,
+          scriptFingerprint,
+          createdAt,
+          errors: [errorObj],
+          promptA,
+          promptB,
+        });
+
+        endTimer();
+        return errorResponse(400, [errorObj]);
+      }
     } catch (err) {
       console.error("=== PROMPT B FAILED ===");
       console.error("Error:", err);
