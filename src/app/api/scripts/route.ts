@@ -91,6 +91,10 @@ export async function POST(
     }, { status: 201 });
 
   } catch (error) {
+    console.error("=== SCRIPT CREATION FAILED ===");
+    console.error("Error:", error);
+    console.error("Error message:", error instanceof Error ? error.message : String(error));
+    console.error("Stack:", error instanceof Error ? error.stack : "No stack");
     logger.error("Failed to create script", { 
       user_id: STUB_USER_ID,
       request_id,
