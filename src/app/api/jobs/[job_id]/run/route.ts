@@ -24,6 +24,10 @@ import { computeScriptFingerprint } from "@/lib/fingerprint";
 // Required for Prisma on Vercel serverless
 export const runtime = "nodejs";
 
+// Allow up to 5 minutes for OpenAI analysis (Prompt A + Prompt B)
+// Requires Vercel Pro plan; Hobby plan is limited to 10 seconds
+export const maxDuration = 300;
+
 type RouteParams = {
   params: Promise<{ job_id: string }>;
 };
