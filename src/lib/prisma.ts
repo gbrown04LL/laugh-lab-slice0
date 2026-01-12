@@ -22,9 +22,9 @@ export function getPrismaClient(): PrismaClient {
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
 
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = client;
-  }
+  // Cache the client globally to prevent connection pool exhaustion
+  // in serverless environments (Vercel) where each request could create a new client
+  globalForPrisma.prisma = client;
 
   return client;
 }
