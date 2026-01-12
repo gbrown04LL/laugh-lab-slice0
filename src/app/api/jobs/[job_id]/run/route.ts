@@ -15,8 +15,15 @@ import {
   type PromptAOutput,
   type PromptBOutput,
 } from "@/lib/types";
-import { PROMPT_A_SYSTEM, PROMPT_B_SYSTEM } from "@/lib/prompts";
-import { callOpenAI } from "@/lib/openai";
+import {
+  PROMPT_A_SYSTEM,
+  PROMPT_B_SYSTEM,
+  USE_STUB_PROVIDER,
+  runPromptAStub,
+  runPromptBStub,
+} from "@/lib/prompts";
+import { callOpenAIWithSchema } from "@/lib/openai";
+import { PromptASchemaForOpenAI, PromptBSchemaForOpenAI } from "@/lib/schemas";
 import { createErrorObject, errorResponse, generateRequestId } from "@/lib/api-errors";
 import logger from "@/lib/logger";
 import { computeScriptFingerprint } from "@/lib/fingerprint";
@@ -74,7 +81,7 @@ async function persistErrorReport(params: {
         job_id: params.job_id,
         user_id: params.user_id,
         schema_version: SCHEMA_VERSION,
-        output: output as any,
+        output: output as object,
       },
     }),
     prisma.analysisJob.update({
@@ -88,10 +95,115 @@ async function persistErrorReport(params: {
 }
 
 /**
+ * Execute Prompt A analysis.
+ * Uses Structured Outputs (json_schema + strict: true) for contract enforcement.
+ * Falls back to stub generator when LLM_PROVIDER=stub.
+ */
+async function executePromptA(scriptText: string): Promise<PromptAOutput> {
+  if (USE_STUB_PROVIDER) {
+    logger.info("Using stub provider for Prompt A (LLM_PROVIDER=stub)");
+    return runPromptAStub(scriptText);
+  }
+
+  // Real OpenAI call with Structured Outputs
+  const rawPromptA = await callOpenAIWithSchema<PromptAOutput>({
+    system: PROMPT_A_SYSTEM,
+    user: scriptText,
+    schemaName: "PromptAResult",
+    schema: PromptASchemaForOpenAI,
+  });
+
+  return rawPromptA;
+}
+
+/**
+ * Execute Prompt B analysis.
+ * Uses Structured Outputs (json_schema + strict: true) for contract enforcement.
+ * Falls back to stub generator when LLM_PROVIDER=stub.
+ */
+async function executePromptB(
+  scriptText: string,
+  promptA: PromptAOutput,
+  tierConfig: TierConfig
+): Promise<PromptBOutput> {
+  if (USE_STUB_PROVIDER) {
+    logger.info("Using stub provider for Prompt B (LLM_PROVIDER=stub)");
+    return runPromptBStub(scriptText, promptA, tierConfig);
+  }
+
+  // Real OpenAI call with Structured Outputs
+  const promptBInput = {
+    script: scriptText,
+    analysis_a: promptA,
+    config: tierConfig,
+  };
+
+  const rawPromptB = await callOpenAIWithSchema<PromptBOutput>({
+    system: PROMPT_B_SYSTEM,
+    user: JSON.stringify(promptBInput),
+    schemaName: "PromptBResult",
+    schema: PromptBSchemaForOpenAI,
+  });
+
+  return rawPromptB;
+}
+
+/**
+ * Validate that Prompt B only references issue_ids from Prompt A.
+ * Returns array of invalid issue_ids if validation fails, empty array if valid.
+ */
+function validateIssueIdReferences(
+  promptA: PromptAOutput,
+  promptB: PromptBOutput
+): string[] {
+  const allowedIssueIds = new Set(promptA.issue_candidates.map((c) => c.issue_id));
+  const invalidIds: string[] = [];
+
+  for (const item of promptB.sections.whats_getting_in_the_way) {
+    if (!allowedIssueIds.has(item.issue_id)) {
+      invalidIds.push(item.issue_id);
+    }
+  }
+
+  for (const item of promptB.sections.recommended_fixes) {
+    if (!allowedIssueIds.has(item.issue_id) && !invalidIds.includes(item.issue_id)) {
+      invalidIds.push(item.issue_id);
+    }
+  }
+
+  return invalidIds;
+}
+
+/**
+ * Validate that Prompt B only references moment_ids from Prompt A's peak_moments.
+ * Returns array of invalid moment_ids if validation fails, empty array if valid.
+ */
+function validateMomentIdReferences(
+  promptA: PromptAOutput,
+  promptB: PromptBOutput
+): string[] {
+  const allowedMomentIds = new Set(promptA.metrics.peak_moments.map((m) => m.moment_id));
+  const invalidIds: string[] = [];
+
+  for (const suggestion of promptB.sections.punch_up_suggestions) {
+    if (!allowedMomentIds.has(suggestion.moment_id) && !invalidIds.includes(suggestion.moment_id)) {
+      invalidIds.push(suggestion.moment_id);
+    }
+  }
+
+  return invalidIds;
+}
+
+/**
  * POST /api/jobs/[job_id]/run
  *
  * Execute the Slice-0 analysis job (Prompt A → Prompt B → Store Report).
  * Idempotent on completed jobs (returns existing run_id).
+ *
+ * Contract-first implementation:
+ * - Uses OpenAI Structured Outputs (json_schema + strict: true) for schema enforcement
+ * - Validates Prompt B doesn't introduce new issue_ids or moment_ids
+ * - Assembles run metadata deterministically on server
  *
  * SECURITY: No raw script content in logs.
  * TRUTH CONTRACT: Store output compliant with schema_version 1.0.0.
@@ -118,14 +230,14 @@ export async function POST(
   if (!uuidRegex.test(job_id)) {
     endTimer();
     return errorResponse(400, [
-createErrorObject({
-          code: "INPUT_VALIDATION_FAILED",
-          message: "Invalid job_id format",
-          stage: "input_validation",
-          retryable: false,
-          request_id,
-          details: { field: "job_id" },
-        }),
+      createErrorObject({
+        code: "INPUT_VALIDATION_FAILED",
+        message: "Invalid job_id format",
+        stage: "input_validation",
+        retryable: false,
+        request_id,
+        details: { field: "job_id" },
+      }),
     ]);
   }
 
@@ -138,15 +250,15 @@ createErrorObject({
     if (!job) {
       endTimer();
       return errorResponse(404, [
-createErrorObject({
-            code: "NOT_FOUND",
-            message: "Job not found",
-            stage: "input_validation",
-            retryable: false,
-            request_id,
-            details: { job_id },
-          }),
-    ]);
+        createErrorObject({
+          code: "NOT_FOUND",
+          message: "Job not found",
+          stage: "input_validation",
+          retryable: false,
+          request_id,
+          details: { job_id },
+        }),
+      ]);
     }
 
     if (job.status === "completed" && job.run_id) {
@@ -168,44 +280,44 @@ createErrorObject({
     if (job.status === "running") {
       endTimer();
       return errorResponse(409, [
-createErrorObject({
-            code: "INPUT_VALIDATION_FAILED",
-            message: "Job is already running",
-            stage: "input_validation",
-            retryable: true,
-            request_id,
-            details: { job_id },
-          }),
-    ]);
+        createErrorObject({
+          code: "INPUT_VALIDATION_FAILED",
+          message: "Job is already running",
+          stage: "input_validation",
+          retryable: true,
+          request_id,
+          details: { job_id },
+        }),
+      ]);
     }
 
     if (job.status === "failed") {
       logger.warn("Job previously failed", { job_id, status: job.status, request_id });
       endTimer();
       return errorResponse(409, [
-createErrorObject({
-            code: "INPUT_VALIDATION_FAILED",
-            message: "Job previously failed. Create a new job to retry.",
-            stage: "input_validation",
-            retryable: false,
-            request_id,
-            details: { job_id },
-          }),
-    ]);
+        createErrorObject({
+          code: "INPUT_VALIDATION_FAILED",
+          message: "Job previously failed. Create a new job to retry.",
+          stage: "input_validation",
+          retryable: false,
+          request_id,
+          details: { job_id },
+        }),
+      ]);
     }
 
     if (!job.script) {
       endTimer();
       return errorResponse(404, [
-createErrorObject({
-            code: "NOT_FOUND",
-            message: "Script submission not found for this job",
-            stage: "input_validation",
-            retryable: false,
-            request_id,
-            details: { job_id },
-          }),
-    ]);
+        createErrorObject({
+          code: "NOT_FOUND",
+          message: "Script submission not found for this job",
+          stage: "input_validation",
+          retryable: false,
+          request_id,
+          details: { job_id },
+        }),
+      ]);
     }
 
     // Allocate run_id and mark job running
@@ -231,26 +343,20 @@ createErrorObject({
     allocated_script_fingerprint = scriptFingerprint;
     allocated_tier_config = tierConfig;
 
-    // Stage: Prompt A
-    let promptA: PromptAOutput | undefined;
+    // Stage: Prompt A (with Structured Outputs enforcement)
+    let promptA: PromptAOutput;
     try {
-      // Real OpenAI call for Prompt A
-      const rawPromptA = await callOpenAI(PROMPT_A_SYSTEM, scriptText);
-      
-      // Validate Prompt A output
+      const rawPromptA = await executePromptA(scriptText);
+
+      // Additional Zod validation (belt-and-suspenders with Structured Outputs)
       const validationA = PromptAOutputSchema.safeParse(rawPromptA);
       if (!validationA.success) {
         throw new Error(`Prompt A validation failed: ${validationA.error.message}`);
       }
-      
+
       promptA = validationA.data;
       partial_prompt_a = promptA;
     } catch (err) {
-      console.error("=== PROMPT A FAILED ===");
-      console.error("Error:", err);
-      console.error("Error message:", err instanceof Error ? err.message : String(err));
-      console.error("Stack:", err instanceof Error ? err.stack : "No stack");
-
       logger.error("Prompt A failed", {
         job_id,
         run_id,
@@ -281,54 +387,63 @@ createErrorObject({
       return errorResponse(500, [errorObj]);
     }
 
-    // Stage: Prompt B
-    let promptB: PromptBOutput | undefined;
+    // Stage: Prompt B (with Structured Outputs enforcement)
+    let promptB: PromptBOutput;
     try {
-      // Real OpenAI call for Prompt B
-      const promptBInput = {
-        script: scriptText,
-        analysis_a: promptA,
-        config: tierConfig,
-      };
-      const rawPromptB = await callOpenAI(PROMPT_B_SYSTEM, promptBInput);
-      
-      // Validate Prompt B output
+      const rawPromptB = await executePromptB(scriptText, promptA, tierConfig);
+
+      // Additional Zod validation (belt-and-suspenders with Structured Outputs)
       const validationB = PromptBOutputSchema.safeParse(rawPromptB);
       if (!validationB.success) {
         throw new Error(`Prompt B validation failed: ${validationB.error.message}`);
       }
-      
+
       promptB = validationB.data;
       partial_prompt_b = promptB;
 
-      // Primary Fix #2: Enforce Prompt B issue_id references match Prompt A issue_candidates
-      const allowedIssueIds = new Set(promptA.issue_candidates.map((c) => c.issue_id));
-      const missingIssueIds: string[] = [];
-
-      promptB.sections.whats_getting_in_the_way.forEach((item) => {
-        if (!allowedIssueIds.has(item.issue_id)) {
-          missingIssueIds.push(item.issue_id);
-        }
-      });
-
-      promptB.sections.recommended_fixes.forEach((item) => {
-        if (!allowedIssueIds.has(item.issue_id)) {
-          if (!missingIssueIds.includes(item.issue_id)) {
-            missingIssueIds.push(item.issue_id);
-          }
-        }
-      });
-
-      if (missingIssueIds.length > 0) {
+      // Hard validation: Prompt B issue_id references must exist in Prompt A
+      const invalidIssueIds = validateIssueIdReferences(promptA, promptB);
+      if (invalidIssueIds.length > 0) {
         const errorObj = createErrorObject({
           code: "PROMPT_B_UNKNOWN_ISSUE_ID",
-          message: "Prompt B includes unknown issue_id references",
+          message: "Prompt B references issue_ids not present in Prompt A",
           stage: "prompt_b",
           retryable: false,
           request_id: run_id,
           details: {
-            missing_issue_ids: missingIssueIds,
-            allowed_issue_ids_count: allowedIssueIds.size,
+            invalid_issue_ids: invalidIssueIds,
+            allowed_issue_ids: promptA.issue_candidates.map((c) => c.issue_id),
+          },
+        });
+
+        await persistErrorReport({
+          run_id,
+          job_id: job.id,
+          user_id: STUB_USER_ID,
+          tierConfig,
+          scriptFingerprint,
+          createdAt,
+          errors: [errorObj],
+          promptA,
+          promptB,
+        });
+
+        endTimer();
+        return errorResponse(400, [errorObj]);
+      }
+
+      // Hard validation: Prompt B moment_id references must exist in Prompt A
+      const invalidMomentIds = validateMomentIdReferences(promptA, promptB);
+      if (invalidMomentIds.length > 0) {
+        const errorObj = createErrorObject({
+          code: "PROMPT_B_UNKNOWN_MOMENT_ID",
+          message: "Prompt B references moment_ids not present in Prompt A peak_moments",
+          stage: "prompt_b",
+          retryable: false,
+          request_id: run_id,
+          details: {
+            invalid_moment_ids: invalidMomentIds,
+            allowed_moment_ids: promptA.metrics.peak_moments.map((m) => m.moment_id),
           },
         });
 
@@ -348,11 +463,6 @@ createErrorObject({
         return errorResponse(400, [errorObj]);
       }
     } catch (err) {
-      console.error("=== PROMPT B FAILED ===");
-      console.error("Error:", err);
-      console.error("Error message:", err instanceof Error ? err.message : String(err));
-      console.error("Stack:", err instanceof Error ? err.stack : "No stack");
-
       logger.error("Prompt B failed", {
         job_id,
         run_id,
@@ -385,6 +495,7 @@ createErrorObject({
     }
 
     // Build final output (Truth Contract)
+    // run metadata is assembled deterministically on the server (not by LLM)
     const finalOutput: FinalOutput = {
       schema_version: SCHEMA_VERSION,
       run: {
@@ -446,7 +557,7 @@ createErrorObject({
           job_id: job.id,
           user_id: STUB_USER_ID,
           schema_version: SCHEMA_VERSION,
-          output: validationResult.data as any,
+          output: validationResult.data as object,
         },
       }),
       prisma.analysisJob.update({

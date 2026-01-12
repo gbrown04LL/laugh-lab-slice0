@@ -10,10 +10,73 @@ import type {
   IssueLocation,
 } from "./types";
 
+// ============================================================================
+// Environment flag for stub mode
+// ============================================================================
+
 /**
- * Normalize text for hashing (stable across platforms).
- * NOTE: Do not lower-case; preserve semantics. Keep deterministic.
+ * When LLM_PROVIDER=stub, use deterministic placeholder generators instead of OpenAI.
+ * This is for dev/test only; production must use the real LLM.
  */
+export const USE_STUB_PROVIDER = process.env.LLM_PROVIDER === "stub";
+
+// ============================================================================
+// System prompts for OpenAI Structured Outputs
+// ============================================================================
+
+/**
+ * Prompt A system instruction.
+ *
+ * IMPORTANT: Schema enforcement is handled by OpenAI Structured Outputs (json_schema).
+ * This prompt focuses on task guidance only.
+ *
+ * Prompt A = structure, metrics, and issue identification only.
+ * No prose, no human-facing coaching, no fixes.
+ */
+export const PROMPT_A_SYSTEM = `You are an expert comedy script analyst.
+
+Analyze the provided script and return a structured JSON response.
+
+Your analysis should cover:
+1. CLASSIFICATION: Infer the script format (scene, half_hour, hour, feature), count words, estimate pages, and assess tier compatibility.
+2. METRICS: Calculate an overall comedy score (0-100), laughs-per-minute for intermediate+ jokes, lines-per-joke ratio, identify peak comedy moments (up to 3), analyze character balance, and assess retention risk.
+3. ISSUE CANDIDATES: Identify up to 4 potential issues affecting comedy effectiveness. Each issue needs a unique issue_id, type, location, severity, tags, and evidence (including a quote snippet under 140 chars).
+
+Focus on objective, data-driven analysis. Do not include recommendations or coaching in this response.
+
+Return JSON only. No markdown. No extra keys.`;
+
+/**
+ * Prompt B system instruction.
+ *
+ * IMPORTANT: Schema enforcement is handled by OpenAI Structured Outputs (json_schema).
+ * This prompt focuses on task guidance only.
+ *
+ * Prompt B = human-facing sections (feedback, fixes, punch-ups, revision guidance).
+ * MUST NOT introduce new issues beyond those identified in Prompt A.
+ */
+export const PROMPT_B_SYSTEM = `You are an expert comedy script analyst providing detailed feedback.
+
+Based on the script and the Prompt A analysis results provided, generate human-readable coaching content.
+
+CRITICAL CONSTRAINT: You MUST NOT introduce new issues. Every issue_id you reference MUST match an issue_id from the Prompt A analysis provided in the input. Do not invent or create new issue identifiers.
+
+Similarly, every moment_id in punch_up_suggestions MUST match a moment_id from the peak_moments in Prompt A.
+
+Your response should include:
+1. COMEDY METRICS SNAPSHOT: Summarize key metrics as bullet points with optional notes.
+2. STRENGTHS TO PRESERVE: List 2-4 things the script does well that should be kept.
+3. WHAT'S GETTING IN THE WAY: For each issue from Prompt A, explain why it matters and provide a concrete fix (title, steps, expected result).
+4. RECOMMENDED FIXES: Brief fix descriptions keyed to issue_ids.
+5. PUNCH-UP SUGGESTIONS: For each peak moment, provide 2-3 alternative options (option_id, comedy device, suggested text).
+6. HOW TO REVISE EFFICIENTLY: A revision plan with mode (time_boxed or multi_pass) and steps.
+
+Return JSON only. No markdown. No extra keys.`;
+
+// ============================================================================
+// Stub helpers (only reachable when LLM_PROVIDER=stub)
+// ============================================================================
+
 function normalizeForHash(text: string): string {
   return text
     .replace(/\r\n/g, "\n")
@@ -39,15 +102,10 @@ function countWords(text: string): number {
 }
 
 function estimatePages(wordCount: number): number {
-  // Practical placeholder: ~250 words/page, min 0.5
   return Math.max(0.5, Math.round((wordCount / 250) * 10) / 10);
 }
 
 function inferFormat(wordCount: number, estimatedPages: number): InferredFormatType {
-  // Deterministic heuristic:
-  // - tiny content: scene
-  // - typical TV lengths: half_hour/hour
-  // - longer: feature
   if (estimatedPages <= 8 || wordCount < 2000) return "scene";
   if (estimatedPages <= 45) return "half_hour";
   if (estimatedPages <= 75) return "hour";
@@ -55,7 +113,6 @@ function inferFormat(wordCount: number, estimatedPages: number): InferredFormatT
 }
 
 function tierCompatibility(inferred: InferredFormatType, wordCount: number): TierCompatibilityType {
-  // Deterministic guardrails (placeholder, Slice-0)
   const ranges: Record<InferredFormatType, { min: number; max: number }> = {
     scene: { min: 200, max: 6000 },
     half_hour: { min: 2500, max: 15000 },
@@ -73,9 +130,8 @@ function makeLocation(type: IssueLocation["type"], value: string): IssueLocation
 }
 
 function pseudoScore(seedHex: string): number {
-  // Deterministic 0-100 from first 2 bytes
-  const n = parseInt(seedHex.slice(0, 4), 16); // 0..65535
-  return Math.round(((n % 7000) / 7000) * 1000) / 10; // 0..100 with 0.1
+  const n = parseInt(seedHex.slice(0, 4), 16);
+  return Math.round(((n % 7000) / 7000) * 1000) / 10;
 }
 
 function bounded01(seedHex: string, offset: number): number {
@@ -83,18 +139,21 @@ function bounded01(seedHex: string, offset: number): number {
   return Math.round(((n % 1000) / 1000) * 1000) / 1000;
 }
 
-/**
- * Slice-0 Prompt A generator (deterministic placeholders).
- * MUST be structure-only (no prose/coaching).
- */
-export const PROMPT_A_SYSTEM = `You are an expert comedy script analyst. Analyze the provided script and return a JSON object following the specified schema.
-Focus on structure, pacing, and joke density.
-Return a JSON object with:
-- classification: inferred format, word count, estimated pages, and tier compatibility.
-- metrics: overall score (0-100), LPM (Laughs Per Minute) intermediate+, lines per joke, peak moments (top 3), character balance, and retention risk.
-- issue_candidates: up to 4 potential issues with location, severity, tags, and evidence.`;
+// ============================================================================
+// Stub generators (quarantined behind LLM_PROVIDER=stub)
+// ============================================================================
 
-export function runPromptA(scriptText: string): PromptAOutput {
+/**
+ * Deterministic Prompt A placeholder generator.
+ * ONLY reachable when LLM_PROVIDER=stub.
+ *
+ * @throws Error if called without stub mode enabled
+ */
+export function runPromptAStub(scriptText: string): PromptAOutput {
+  if (!USE_STUB_PROVIDER) {
+    throw new Error("runPromptAStub called but LLM_PROVIDER is not 'stub'. This is a code path error.");
+  }
+
   const wordCount = countWords(scriptText);
   const estimatedPages = estimatePages(wordCount);
 
@@ -172,7 +231,6 @@ export function runPromptA(scriptText: string): PromptAOutput {
     },
   ];
 
-  // Keep a deterministic max list even for short scripts (Slice-0 stubs)
   const maxIssues = 4;
   const finalIssues = issueCandidates.slice(0, maxIssues);
 
@@ -217,30 +275,26 @@ export function runPromptA(scriptText: string): PromptAOutput {
 }
 
 /**
- * Slice-0 Prompt B generator (deterministic placeholders).
- * MUST NOT introduce new issues beyond Prompt A.
+ * Deterministic Prompt B placeholder generator.
+ * ONLY reachable when LLM_PROVIDER=stub.
+ *
+ * @throws Error if called without stub mode enabled
  */
-export const PROMPT_B_SYSTEM = `You are an expert comedy script analyst. Based on the Prompt A analysis and the script, provide detailed feedback and fixes.
-Return a JSON object with:
-- sections:
-  - comedy_metrics_snapshot: bullets summarizing metrics and optional notes.
-  - strengths_to_preserve: array of strings.
-  - whats_getting_in_the_way: array of issues with issue_id, why it matters, and a concrete fix (title, steps, expected result).
-  - recommended_fixes: array of objects with issue_id and fix description.
-  - punch_up_suggestions: array of suggestions with moment_id, moment_context, and options (option_id, device, text).
-  - how_to_revise_this_efficiently: revision plan with mode and steps.`;
-
-export function runPromptB(
+export function runPromptBStub(
   scriptText: string,
   promptA: PromptAOutput,
   tierConfig: TierConfig
 ): PromptBOutput {
+  if (!USE_STUB_PROVIDER) {
+    throw new Error("runPromptBStub called but LLM_PROVIDER is not 'stub'. This is a code path error.");
+  }
+
   const issueIds = new Set(promptA.issue_candidates.map((i) => i.issue_id));
 
   const maxIssues = Math.max(0, Math.min(tierConfig.max_issues, promptA.issue_candidates.length));
   const selectedIssues = promptA.issue_candidates.slice(0, maxIssues);
 
-  // Hard enforcement in generator (runtime route also re-checks)
+  // Hard enforcement in generator
   for (const i of selectedIssues) {
     if (!issueIds.has(i.issue_id)) {
       throw new Error(`Prompt B attempted to reference unknown issue_id: ${i.issue_id}`);
@@ -262,7 +316,7 @@ export function runPromptB(
       steps: [
         "Trim one beat that restates the same idea.",
         "Add one clear escalation turn (new information or higher stakes).",
-        "End the beat with a cleaner button that changes the next beat’s energy.",
+        "End the beat with a cleaner button that changes the next beat's energy.",
       ],
       expected_result: "Faster pace, clearer progression, stronger payoff density.",
     },
@@ -284,7 +338,7 @@ export function runPromptB(
     })),
   }));
 
-  const revisionMode = tierConfig.revision_guidance_level; // time_boxed | multi_pass
+  const revisionMode = tierConfig.revision_guidance_level;
   const revisionSteps =
     revisionMode === "time_boxed"
       ? [
@@ -302,7 +356,7 @@ export function runPromptB(
     sections: {
       comedy_metrics_snapshot: {
         bullets,
-        notes: "Deterministic Slice-0 placeholders (no external calls).",
+        notes: "Deterministic Slice-0 placeholders (stub mode).",
       },
       strengths_to_preserve: [
         "Clear premise signal early.",
@@ -321,3 +375,17 @@ export function runPromptB(
     },
   };
 }
+
+// ============================================================================
+// Legacy exports (deprecated, for backwards compat only)
+// ============================================================================
+
+/**
+ * @deprecated Use runPromptAStub with LLM_PROVIDER=stub, or callOpenAIWithSchema for production.
+ */
+export const runPromptA = runPromptAStub;
+
+/**
+ * @deprecated Use runPromptBStub with LLM_PROVIDER=stub, or callOpenAIWithSchema for production.
+ */
+export const runPromptB = runPromptBStub;
