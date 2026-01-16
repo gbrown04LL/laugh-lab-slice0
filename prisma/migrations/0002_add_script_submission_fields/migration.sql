@@ -1,6 +1,13 @@
 -- AddColumns: script_submissions fingerprint and metadata fields
 -- These columns exist in schema.prisma but were missing from 0001_init
+--
+-- WARNING: This migration truncates script_submissions.
+-- Acceptable for Slice-0 / dev environments. Do NOT run in production with real data.
 
+-- Truncate to allow NOT NULL columns without defaults
+TRUNCATE TABLE "script_submissions" RESTART IDENTITY CASCADE;
+
+-- Add missing columns
 ALTER TABLE "script_submissions" ADD COLUMN "input_hash" VARCHAR(64) NOT NULL;
 ALTER TABLE "script_submissions" ADD COLUMN "word_count" INTEGER NOT NULL;
 ALTER TABLE "script_submissions" ADD COLUMN "estimated_pages" DOUBLE PRECISION NOT NULL;
