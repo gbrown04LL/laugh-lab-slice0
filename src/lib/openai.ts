@@ -42,7 +42,7 @@ export async function callOpenAI(
   try {
     const response = await openai.chat.completions.create(
       {
-        model: "gpt-4o",
+        model: "gpt-4-turbo",
         messages: [
           { role: "system", content: systemPrompt },
           {
