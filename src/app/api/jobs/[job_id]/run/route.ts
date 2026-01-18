@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
 import {
   STUB_USER_ID,
@@ -209,7 +209,7 @@ createErrorObject({
     }
 
     // Allocate run_id and mark job running
-    const run_id = uuidv4();
+    const run_id = randomUUID();
     const createdAt = new Date().toISOString();
 
     allocated_run_id = run_id;
