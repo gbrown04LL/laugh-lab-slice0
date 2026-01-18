@@ -1,25 +1,33 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 /**
- * Lazy-initialize PrismaClient to avoid import-time throws if DATABASE_URL is missing.
- * This is particularly important for Vercel builds where env vars might not be present.
+ * Lazy-initialize PrismaClient with the Prisma 7 driver adapter pattern.
+ * Uses PrismaPg adapter for PostgreSQL connections.
  */
 export function getPrismaClient(): PrismaClient {
   if (globalForPrisma.prisma) {
     return globalForPrisma.prisma;
   }
 
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl && process.env.NODE_ENV === "production") {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString && process.env.NODE_ENV === "production") {
     throw new Error("DATABASE_URL is required in production.");
   }
 
+  // Create the PrismaPg adapter with connection string
+  const adapter = new PrismaPg({ connectionString: connectionString ?? "" });
+
   const client = new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    adapter,
+    log:
+      process.env.NODE_ENV === "development"
+        ? ["query", "error", "warn"]
+        : ["error"],
   });
 
   if (process.env.NODE_ENV !== "production") {

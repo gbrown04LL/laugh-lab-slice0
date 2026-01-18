@@ -1,15 +1,14 @@
 // Laugh Lab Slice-0 Prisma Schema
-// Database: Neon Postgres
+// Database: Neon Postgres (Prisma 7)
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_DATABASE_URL")
+  provider = "postgresql"
 }
 
 model ScriptSubmission {
