@@ -1,8 +1,18 @@
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy-initialize OpenAI client to avoid build-time errors
+let openaiClient: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openaiClient) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is not set');
+    }
+    openaiClient = new OpenAI({ apiKey });
+  }
+  return openaiClient;
+}
 
 const DEFAULT_MODEL = process.env.LAUGHLAB_LLM_MODEL || 'gpt-4o';
 
@@ -27,6 +37,7 @@ export async function callLLM<T>(
   }
 ): Promise<LLMResponse<T>> {
   try {
+    const openai = getOpenAI();
     const response = await openai.chat.completions.create({
       model: DEFAULT_MODEL,
       messages: [

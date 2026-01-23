@@ -1,11 +1,22 @@
 import OpenAI from "openai";
 import { SCHEMA_VERSION } from "./types";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY?.trim(),
-});
+// Lazy-initialize OpenAI client to avoid build-time errors when env vars are missing
+let openaiClient: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openaiClient) {
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey) {
+      throw new Error("OPENAI_API_KEY environment variable is not set");
+    }
+    openaiClient = new OpenAI({ apiKey });
+  }
+  return openaiClient;
+}
 
 export async function callOpenAI(systemPrompt: string, userContent: any) {
+  const openai = getOpenAI();
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
