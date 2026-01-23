@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { analysisJob } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { STUB_USER_ID } from "@/lib/types";
 import type { JobResponse, ErrorObject } from "@/lib/types";
-import { 
-  errorResponse, 
-  validationError, 
-  notFoundError, 
-  internalError, 
-  generateRequestId 
+import {
+  errorResponse,
+  validationError,
+  notFoundError,
+  internalError,
+  generateRequestId
 } from "@/lib/api-errors";
 import logger from "@/lib/logger";
 
-// Required for Prisma on Vercel serverless
+// Required for serverless
 export const runtime = "nodejs";
 
 interface RouteParams {
@@ -44,19 +46,16 @@ export async function GET(
     }
 
     // Fetch job with owner check
-    const job = await prisma.analysisJob.findUnique({
-      where: { id: job_id },
-      select: {
-        id: true,
-        script_id: true,
-        user_id: true,
-        status: true,
-        run_id: true,
-        created_at: true,
-        started_at: true,
-        completed_at: true,
-      },
-    });
+    const [job] = await db.select({
+      id: analysisJob.id,
+      script_id: analysisJob.script_id,
+      user_id: analysisJob.user_id,
+      status: analysisJob.status,
+      run_id: analysisJob.run_id,
+      created_at: analysisJob.created_at,
+      started_at: analysisJob.started_at,
+      completed_at: analysisJob.completed_at,
+    }).from(analysisJob).where(eq(analysisJob.id, job_id)).limit(1);
 
     if (!job) {
       logger.warn("Job not found", { job_id, user_id: STUB_USER_ID, request_id });

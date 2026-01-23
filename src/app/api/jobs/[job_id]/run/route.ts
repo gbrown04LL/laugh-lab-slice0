@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import prisma from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { analysisJob, scriptSubmission, analysisReport } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 import {
   STUB_USER_ID,
   SCHEMA_VERSION,
@@ -21,7 +23,7 @@ import { createErrorObject, errorResponse, generateRequestId } from "@/lib/api-e
 import logger from "@/lib/logger";
 import { computeScriptFingerprint } from "@/lib/fingerprint";
 
-// Required for Prisma on Vercel serverless
+// Required for serverless
 export const runtime = "nodejs";
 
 type RouteParams = {
@@ -67,24 +69,21 @@ async function persistErrorReport(params: {
     errors: params.errors,
   };
 
-  await prisma.$transaction([
-    prisma.analysisReport.create({
-      data: {
-        id: params.run_id,
-        job_id: params.job_id,
-        user_id: params.user_id,
-        schema_version: SCHEMA_VERSION,
-        output: output as any,
-      },
-    }),
-    prisma.analysisJob.update({
-      where: { id: params.job_id },
-      data: {
+  await db.transaction(async (tx) => {
+    await tx.insert(analysisReport).values({
+      id: params.run_id,
+      job_id: params.job_id,
+      user_id: params.user_id,
+      schema_version: SCHEMA_VERSION,
+      output: output as any,
+    });
+    await tx.update(analysisJob)
+      .set({
         status: "failed",
         completed_at: new Date(),
-      },
-    }),
-  ]);
+      })
+      .where(eq(analysisJob.id, params.job_id));
+  });
 }
 
 /**
@@ -130,10 +129,27 @@ createErrorObject({
   }
 
   try {
-    const job = await prisma.analysisJob.findFirst({
-      where: { id: job_id, user_id: STUB_USER_ID },
-      include: { script: true },
-    });
+    const [jobData] = await db.select({
+      id: analysisJob.id,
+      script_id: analysisJob.script_id,
+      user_id: analysisJob.user_id,
+      status: analysisJob.status,
+      run_id: analysisJob.run_id,
+      created_at: analysisJob.created_at,
+      started_at: analysisJob.started_at,
+      completed_at: analysisJob.completed_at,
+      script: {
+        id: scriptSubmission.id,
+        text: scriptSubmission.text,
+        user_id: scriptSubmission.user_id,
+      },
+    })
+    .from(analysisJob)
+    .leftJoin(scriptSubmission, eq(analysisJob.script_id, scriptSubmission.id))
+    .where(and(eq(analysisJob.id, job_id), eq(analysisJob.user_id, STUB_USER_ID)))
+    .limit(1);
+
+    const job = jobData;
 
     if (!job) {
       endTimer();
@@ -215,14 +231,13 @@ createErrorObject({
     allocated_run_id = run_id;
     allocated_created_at = createdAt;
 
-    await prisma.analysisJob.update({
-      where: { id: job.id },
-      data: {
+    await db.update(analysisJob)
+      .set({
         status: "running",
         run_id,
         started_at: new Date(),
-      },
-    });
+      })
+      .where(eq(analysisJob.id, job.id));
 
     const scriptText = job.script.text;
     const scriptFingerprint = computeScriptFingerprint(scriptText);
@@ -439,24 +454,21 @@ createErrorObject({
     }
 
     // Persist report (immutable) + mark job completed
-    await prisma.$transaction([
-      prisma.analysisReport.create({
-        data: {
-          id: run_id,
-          job_id: job.id,
-          user_id: STUB_USER_ID,
-          schema_version: SCHEMA_VERSION,
-          output: validationResult.data as any,
-        },
-      }),
-      prisma.analysisJob.update({
-        where: { id: job.id },
-        data: {
+    await db.transaction(async (tx) => {
+      await tx.insert(analysisReport).values({
+        id: run_id,
+        job_id: job.id,
+        user_id: STUB_USER_ID,
+        schema_version: SCHEMA_VERSION,
+        output: validationResult.data as any,
+      });
+      await tx.update(analysisJob)
+        .set({
           status: "completed",
           completed_at: new Date(),
-        },
-      }),
-    ]);
+        })
+        .where(eq(analysisJob.id, job.id));
+    });
 
     endTimer();
     return NextResponse.json({

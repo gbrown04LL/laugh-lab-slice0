@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { analysisReport } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { STUB_USER_ID } from "@/lib/types";
 import type { ReportResponse, FinalOutput, ErrorObject } from "@/lib/types";
-import { 
-  errorResponse, 
-  validationError, 
-  notFoundError, 
-  internalError, 
-  generateRequestId 
+import {
+  errorResponse,
+  validationError,
+  notFoundError,
+  internalError,
+  generateRequestId
 } from "@/lib/api-errors";
 import logger from "@/lib/logger";
 
-// Required for Prisma on Vercel serverless
+// Required for serverless
 export const runtime = "nodejs";
 
 interface RouteParams {
@@ -45,17 +47,14 @@ export async function GET(
     }
 
     // Fetch report with owner check
-    const report = await prisma.analysisReport.findUnique({
-      where: { id: run_id },
-      select: {
-        id: true,
-        job_id: true,
-        user_id: true,
-        schema_version: true,
-        output: true,
-        created_at: true,
-      },
-    });
+    const [report] = await db.select({
+      id: analysisReport.id,
+      job_id: analysisReport.job_id,
+      user_id: analysisReport.user_id,
+      schema_version: analysisReport.schema_version,
+      output: analysisReport.output,
+      created_at: analysisReport.created_at,
+    }).from(analysisReport).where(eq(analysisReport.id, run_id)).limit(1);
 
     if (!report) {
       logger.warn("Report not found", { run_id, user_id: STUB_USER_ID, request_id });

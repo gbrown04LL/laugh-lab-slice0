@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { scriptSubmission, analysisJob } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { CreateJobSchema, STUB_USER_ID } from "@/lib/types";
 import type { JobResponse, ErrorObject } from "@/lib/types";
-import { 
-  errorResponse, 
-  validationError, 
-  notFoundError, 
-  internalError, 
-  generateRequestId 
+import {
+  errorResponse,
+  validationError,
+  notFoundError,
+  internalError,
+  generateRequestId
 } from "@/lib/api-errors";
 import logger from "@/lib/logger";
 
-// Required for Prisma on Vercel serverless
+// Required for serverless
 export const runtime = "nodejs";
 
 /**
@@ -54,10 +56,10 @@ export async function POST(
     const { script_id } = parseResult.data;
 
     // Verify script exists and belongs to user
-    const script = await prisma.scriptSubmission.findUnique({
-      where: { id: script_id },
-      select: { id: true, user_id: true },
-    });
+    const [script] = await db.select({
+      id: scriptSubmission.id,
+      user_id: scriptSubmission.user_id,
+    }).from(scriptSubmission).where(eq(scriptSubmission.id, script_id)).limit(1);
 
     if (!script) {
       logger.warn("Script not found", { script_id, user_id: STUB_USER_ID, request_id });
@@ -79,22 +81,19 @@ export async function POST(
     }
 
     // Create job in pending status
-    const job = await prisma.analysisJob.create({
-      data: {
-        script_id,
-        user_id: STUB_USER_ID,
-        status: "pending",
-      },
-      select: {
-        id: true,
-        script_id: true,
-        user_id: true,
-        status: true,
-        run_id: true,
-        created_at: true,
-        started_at: true,
-        completed_at: true,
-      },
+    const [job] = await db.insert(analysisJob).values({
+      script_id,
+      user_id: STUB_USER_ID,
+      status: "pending",
+    }).returning({
+      id: analysisJob.id,
+      script_id: analysisJob.script_id,
+      user_id: analysisJob.user_id,
+      status: analysisJob.status,
+      run_id: analysisJob.run_id,
+      created_at: analysisJob.created_at,
+      started_at: analysisJob.started_at,
+      completed_at: analysisJob.completed_at,
     });
 
     logger.info("Job created", { 

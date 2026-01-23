@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { scriptSubmission } from "@/lib/db/schema";
 import { CreateScriptSchema, STUB_USER_ID } from "@/lib/types";
 import type { ScriptResponse, ErrorObject } from "@/lib/types";
-import { 
-  errorResponse, 
-  validationError, 
-  internalError, 
-  generateRequestId 
+import {
+  errorResponse,
+  validationError,
+  internalError,
+  generateRequestId
 } from "@/lib/api-errors";
 import logger from "@/lib/logger";
 import { computeScriptFingerprint } from "@/lib/fingerprint";
 
-// Required for Prisma on Vercel serverless
+// Required for serverless
 export const runtime = "nodejs";
 
 /**
@@ -58,21 +59,18 @@ export async function POST(
 
     // Create script submission
     // SECURITY: Only log text length, never raw content
-    const script = await prisma.scriptSubmission.create({
-      data: {
-        user_id: STUB_USER_ID,
-        text,
-        input_hash: fingerprint.input_hash,
-        word_count: fingerprint.word_count,
-        estimated_pages: fingerprint.estimated_pages,
-        inferred_format: fingerprint.inferred_format,
-        tier_compatibility: fingerprint.tier_compatibility,
-      },
-      select: {
-        id: true,
-        user_id: true,
-        created_at: true,
-      },
+    const [script] = await db.insert(scriptSubmission).values({
+      user_id: STUB_USER_ID,
+      text,
+      input_hash: fingerprint.input_hash,
+      word_count: fingerprint.word_count,
+      estimated_pages: fingerprint.estimated_pages,
+      inferred_format: fingerprint.inferred_format,
+      tier_compatibility: fingerprint.tier_compatibility,
+    }).returning({
+      id: scriptSubmission.id,
+      user_id: scriptSubmission.user_id,
+      created_at: scriptSubmission.created_at,
     });
 
     logger.info("Script created", { 

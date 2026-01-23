@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { db } from "@/lib/db";
+import { sql } from "drizzle-orm";
 import { createErrorObject, generateRequestId } from "@/lib/api-errors";
 import type { ErrorObject } from "@/lib/types";
 import logger from "@/lib/logger";
 
-// Required for Prisma on Vercel serverless
+// Required for serverless
 export const runtime = "nodejs";
 
 type HealthOk = { ok: true };
@@ -21,7 +22,7 @@ export async function GET(): Promise<NextResponse<HealthOk | HealthFail>> {
 
   try {
     // Simple query; doesn't require any table rows
-    await prisma.$queryRaw`SELECT 1`;
+    await db.execute(sql`SELECT 1`);
 
     endTimer();
     return NextResponse.json({ ok: true });
