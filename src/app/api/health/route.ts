@@ -1,46 +1,31 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { createErrorObject, generateRequestId } from "@/lib/api-errors";
-import type { ErrorObject } from "@/lib/types";
-import logger from "@/lib/logger";
-
-// Required for Prisma on Vercel serverless
-export const runtime = "nodejs";
+import { neon } from "@neondatabase/serverless";
 
 type HealthOk = { ok: true };
-type HealthFail = { ok: false; errors: ErrorObject[] };
+type HealthFail = { ok: false; error: string };
 
 /**
  * GET /api/health
  *
- * Minimal DB connectivity check.
+ * Minimal DB connectivity check using Drizzle/Neon.
  */
 export async function GET(): Promise<NextResponse<HealthOk | HealthFail>> {
-  const request_id = generateRequestId();
-  const endTimer = logger.startTimer("GET /api/health", { request_id });
-
   try {
-    // Simple query; doesn't require any table rows
-    await prisma.$queryRaw`SELECT 1`;
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json(
+        { ok: false, error: "DATABASE_URL not configured" },
+        { status: 503 }
+      );
+    }
 
-    endTimer();
+    const sql = neon(process.env.DATABASE_URL);
+    await sql`SELECT 1`;
+
     return NextResponse.json({ ok: true });
-  } catch {
-    endTimer();
+  } catch (error) {
+    console.error("Health check failed:", error);
     return NextResponse.json(
-      {
-        ok: false,
-        errors: [
-          createErrorObject({
-            code: "INTERNAL_ERROR",
-            message: "Database connectivity check failed",
-            stage: "persistence",
-            retryable: true,
-            request_id,
-            details: {},
-          }),
-        ],
-      },
+      { ok: false, error: "Database connectivity check failed" },
       { status: 503 }
     );
   }
