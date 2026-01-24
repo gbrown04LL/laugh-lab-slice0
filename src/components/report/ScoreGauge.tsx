@@ -1,4 +1,5 @@
 'use client';
+import React from 'react';
 import { ResponsiveContainer, RadialBarChart, RadialBar } from 'recharts';
 
 interface ScoreGaugeProps {

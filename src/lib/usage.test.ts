@@ -1,0 +1,518 @@
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { checkUsageLimit, incrementUsage } from './usage';
+import * as dbModule from './db';
+
+// Mock the database module
+vi.mock('./db', () => ({
+  db: {
+    query: {
+      usageTracking: {
+        findFirst: vi.fn(),
+      },
+    },
+    insert: vi.fn(() => ({
+      values: vi.fn(),
+    })),
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn(),
+      })),
+    })),
+  },
+}));
+
+describe('Usage Tracking', () => {
+  const mockDb = dbModule.db as any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Reset the system time
+    vi.useRealTimers();
+  });
+
+  describe('checkUsageLimit', () => {
+    it('should allow first-time user', async () => {
+      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+
+      const result = await checkUsageLimit('new-user');
+
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(2);
+      expect(result.limit).toBe(2);
+      expect(result.reason).toBeUndefined();
+    });
+
+    it('should allow user with usage below limit', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 1,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await checkUsageLimit('user-1');
+
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(1);
+      expect(result.limit).toBe(2);
+    });
+
+    it('should deny user at limit', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 2,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await checkUsageLimit('user-1');
+
+      expect(result.allowed).toBe(false);
+      expect(result.remaining).toBe(0);
+      expect(result.limit).toBe(2);
+      expect(result.reason).toContain('used all 2 free analyses');
+    });
+
+    it('should deny user over limit', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 5,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await checkUsageLimit('user-1');
+
+      expect(result.allowed).toBe(false);
+      expect(result.remaining).toBe(0);
+      expect(result.limit).toBe(2);
+    });
+
+    it('should reset usage for new month', async () => {
+      // Mock user from previous month
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      const oldMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 2,
+        monthKey: oldMonthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const mockUpdate = vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(),
+        })),
+      }));
+      mockDb.update = mockUpdate;
+
+      const result = await checkUsageLimit('user-1');
+
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(2);
+      expect(result.limit).toBe(2);
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+
+    it('should handle edge case of exactly at limit', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 2,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await checkUsageLimit('user-1');
+
+      expect(result.allowed).toBe(false);
+      expect(result.remaining).toBe(0);
+    });
+
+    it('should handle null monthlyCount', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: null,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const result = await checkUsageLimit('user-1');
+
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(2);
+    });
+
+    it('should calculate correct remaining count', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      // Test with count = 0
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 0,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      let result = await checkUsageLimit('user-1');
+      expect(result.remaining).toBe(2);
+
+      // Test with count = 1
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 1,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      result = await checkUsageLimit('user-1');
+      expect(result.remaining).toBe(1);
+    });
+
+    it('should handle different month boundaries correctly', async () => {
+      // Test January
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2024-01-15'));
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 0,
+        monthKey: '2024-01',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      let result = await checkUsageLimit('user-1');
+      expect(result.allowed).toBe(true);
+
+      // Test December
+      vi.setSystemTime(new Date('2024-12-15'));
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 0,
+        monthKey: '2024-12',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      result = await checkUsageLimit('user-1');
+      expect(result.allowed).toBe(true);
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe('incrementUsage', () => {
+    it('should create new record for first-time user', async () => {
+      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+
+      const mockInsert = vi.fn(() => ({
+        values: vi.fn(),
+      }));
+      mockDb.insert = mockInsert;
+
+      await incrementUsage('new-user');
+
+      expect(mockInsert).toHaveBeenCalled();
+    });
+
+    it('should insert with count of 1 for new user', async () => {
+      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+
+      const mockValues = vi.fn();
+      const mockInsert = vi.fn(() => ({
+        values: mockValues,
+      }));
+      mockDb.insert = mockInsert;
+
+      await incrementUsage('new-user');
+
+      expect(mockValues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          identifier: 'new-user',
+          monthlyCount: 1,
+        })
+      );
+    });
+
+    it('should update existing user count', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 1,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const mockWhere = vi.fn();
+      const mockSet = vi.fn(() => ({
+        where: mockWhere,
+      }));
+      const mockUpdate = vi.fn(() => ({
+        set: mockSet,
+      }));
+      mockDb.update = mockUpdate;
+
+      await incrementUsage('user-1');
+
+      expect(mockUpdate).toHaveBeenCalled();
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          monthlyCount: 2,
+        })
+      );
+    });
+
+    it('should increment from 0 to 1', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 0,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const mockWhere = vi.fn();
+      const mockSet = vi.fn(() => ({
+        where: mockWhere,
+      }));
+      const mockUpdate = vi.fn(() => ({
+        set: mockSet,
+      }));
+      mockDb.update = mockUpdate;
+
+      await incrementUsage('user-1');
+
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          monthlyCount: 1,
+        })
+      );
+    });
+
+    it('should handle null monthlyCount', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: null,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const mockWhere = vi.fn();
+      const mockSet = vi.fn(() => ({
+        where: mockWhere,
+      }));
+      const mockUpdate = vi.fn(() => ({
+        set: mockSet,
+      }));
+      mockDb.update = mockUpdate;
+
+      await incrementUsage('user-1');
+
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          monthlyCount: 1, // 0 (from null) + 1
+        })
+      );
+    });
+
+    it('should set monthKey for new user', async () => {
+      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+
+      const currentMonth = new Date();
+      const expectedMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      const mockValues = vi.fn();
+      const mockInsert = vi.fn(() => ({
+        values: mockValues,
+      }));
+      mockDb.insert = mockInsert;
+
+      await incrementUsage('new-user');
+
+      expect(mockValues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          monthKey: expectedMonthKey,
+        })
+      );
+    });
+
+    it('should update updatedAt timestamp', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 1,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date('2024-01-01'),
+      });
+
+      const mockWhere = vi.fn();
+      const mockSet = vi.fn(() => ({
+        where: mockWhere,
+      }));
+      const mockUpdate = vi.fn(() => ({
+        set: mockSet,
+      }));
+      mockDb.update = mockUpdate;
+
+      await incrementUsage('user-1');
+
+      expect(mockSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          updatedAt: expect.any(Date),
+        })
+      );
+    });
+  });
+
+  describe('Month Key Generation', () => {
+    it('should format single-digit months with leading zero', async () => {
+      vi.useFakeTimers();
+
+      // Test each month
+      const months = [
+        { date: '2024-01-15', expected: '2024-01' },
+        { date: '2024-02-15', expected: '2024-02' },
+        { date: '2024-09-15', expected: '2024-09' },
+        { date: '2024-10-15', expected: '2024-10' },
+        { date: '2024-11-15', expected: '2024-11' },
+        { date: '2024-12-15', expected: '2024-12' },
+      ];
+
+      for (const { date, expected } of months) {
+        vi.setSystemTime(new Date(date));
+
+        mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+
+        const mockValues = vi.fn();
+        const mockInsert = vi.fn(() => ({
+          values: mockValues,
+        }));
+        mockDb.insert = mockInsert;
+
+        await incrementUsage('test-user');
+
+        expect(mockValues).toHaveBeenCalledWith(
+          expect.objectContaining({
+            monthKey: expected,
+          })
+        );
+
+        vi.clearAllMocks();
+      }
+
+      vi.useRealTimers();
+    });
+
+    it('should handle year boundaries', async () => {
+      vi.useFakeTimers();
+
+      // Test December to January transition
+      vi.setSystemTime(new Date('2024-12-31'));
+      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+
+      let mockValues = vi.fn();
+      let mockInsert = vi.fn(() => ({ values: mockValues }));
+      mockDb.insert = mockInsert;
+
+      await incrementUsage('test-user');
+      expect(mockValues).toHaveBeenCalledWith(
+        expect.objectContaining({ monthKey: '2024-12' })
+      );
+
+      vi.clearAllMocks();
+
+      vi.setSystemTime(new Date('2025-01-01'));
+      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+
+      mockValues = vi.fn();
+      mockInsert = vi.fn(() => ({ values: mockValues }));
+      mockDb.insert = mockInsert;
+
+      await incrementUsage('test-user');
+      expect(mockValues).toHaveBeenCalledWith(
+        expect.objectContaining({ monthKey: '2025-01' })
+      );
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe('Integration Scenarios', () => {
+    it('should handle full usage cycle for a user', async () => {
+      const currentMonth = new Date();
+      const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
+      // Check 1: New user
+      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+      let result = await checkUsageLimit('user-1');
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(2);
+
+      // Use 1: After first usage
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 1,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      result = await checkUsageLimit('user-1');
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(1);
+
+      // Use 2: After second usage
+      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+        identifier: 'user-1',
+        monthlyCount: 2,
+        monthKey,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      result = await checkUsageLimit('user-1');
+      expect(result.allowed).toBe(false);
+      expect(result.remaining).toBe(0);
+    });
+  });
+});
