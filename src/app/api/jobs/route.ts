@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import getPrismaClient from "@/lib/prisma";
 import { CreateJobSchema, STUB_USER_ID } from "@/lib/types";
 import type { JobResponse, ErrorObject } from "@/lib/types";
 import { 
@@ -27,6 +27,7 @@ export async function POST(
   const endTimer = logger.startTimer("POST /api/jobs", { request_id });
 
   try {
+    const prisma = getPrismaClient();
     const body = await request.json();
     
     // Validate input

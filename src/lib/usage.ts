@@ -1,4 +1,4 @@
-import { db } from './db';
+import getDb from './db';
 import { usageTracking } from './db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -15,6 +15,7 @@ export async function checkUsageLimit(identifier: string): Promise<{
   limit: number;
   reason?: string;
 }> {
+  const db = getDb();
   const monthKey = getCurrentMonthKey();
   
   const existing = await db.query.usageTracking.findFirst({
@@ -51,6 +52,7 @@ export async function checkUsageLimit(identifier: string): Promise<{
 }
 
 export async function incrementUsage(identifier: string): Promise<void> {
+  const db = getDb();
   const monthKey = getCurrentMonthKey();
   
   const existing = await db.query.usageTracking.findFirst({

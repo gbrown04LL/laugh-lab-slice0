@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import prisma from "@/lib/prisma";
+import getPrismaClient from "@/lib/prisma";
 import {
   STUB_USER_ID,
   SCHEMA_VERSION,
@@ -54,6 +54,7 @@ async function persistErrorReport(params: {
   promptA?: PromptAOutput;
   promptB?: PromptBOutput;
 }) {
+  const prisma = getPrismaClient();
   const output: FinalOutput = {
     schema_version: SCHEMA_VERSION,
     run: {
@@ -103,6 +104,7 @@ export async function POST(
   const { job_id } = await params;
   const request_id = generateRequestId();
   const endTimer = logger.startTimer("POST /api/jobs/[job_id]/run", { job_id, request_id });
+  const prisma = getPrismaClient();
 
   // Track these so we can persist an immutable error report after run_id allocation.
   let allocated_run_id: string | null = null;

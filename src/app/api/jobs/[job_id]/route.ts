@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import getPrismaClient from "@/lib/prisma";
 import { STUB_USER_ID } from "@/lib/types";
 import type { JobResponse, ErrorObject } from "@/lib/types";
 import { 
@@ -34,6 +34,7 @@ export async function GET(
   const endTimer = logger.startTimer("GET /api/jobs/[job_id]", { job_id, request_id });
 
   try {
+    const prisma = getPrismaClient();
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(job_id)) {

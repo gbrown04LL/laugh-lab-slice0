@@ -29,5 +29,4 @@ export function getPrismaClient(): PrismaClient {
   return client;
 }
 
-export const prisma = getPrismaClient();
-export default prisma;
+export default getPrismaClient;
