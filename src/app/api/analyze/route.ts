@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runAnalysisPipeline } from '@/lib/analysis/pipeline';
 import { checkUsageLimit, incrementUsage } from '@/lib/usage';
-import { db } from '@/lib/db';
+import getDb from '@/lib/db';
 import { analyses } from '@/lib/db/schema';
 import crypto from 'crypto';
 
@@ -9,6 +9,7 @@ export const maxDuration = 60; // Allow up to 60 seconds for analysis
 
 export async function POST(req: NextRequest) {
   try {
+    const db = getDb();
     // 1. Get identifier
     const fingerprint = req.headers.get('x-fingerprint');
     const forwarded = req.headers.get('x-forwarded-for');

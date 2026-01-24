@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import getPrismaClient from "@/lib/prisma";
 import { createErrorObject, generateRequestId } from "@/lib/api-errors";
 import type { ErrorObject } from "@/lib/types";
 import logger from "@/lib/logger";
@@ -20,6 +20,7 @@ export async function GET(): Promise<NextResponse<HealthOk | HealthFail>> {
   const endTimer = logger.startTimer("GET /api/health", { request_id });
 
   try {
+    const prisma = getPrismaClient();
     // Simple query; doesn't require any table rows
     await prisma.$queryRaw`SELECT 1`;
 

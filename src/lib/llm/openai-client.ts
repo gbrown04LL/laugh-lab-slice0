@@ -1,8 +1,20 @@
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openaiClient: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+  if (openaiClient) {
+    return openaiClient;
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY is required.');
+  }
+
+  openaiClient = new OpenAI({ apiKey });
+  return openaiClient;
+}
 
 const DEFAULT_MODEL = process.env.LAUGHLAB_LLM_MODEL || 'gpt-4o';
 
@@ -27,6 +39,7 @@ export async function callLLM<T>(
   }
 ): Promise<LLMResponse<T>> {
   try {
+    const openai = getOpenAIClient();
     const response = await openai.chat.completions.create({
       model: DEFAULT_MODEL,
       messages: [

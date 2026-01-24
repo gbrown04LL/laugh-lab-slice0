@@ -1,11 +1,22 @@
 import OpenAI from "openai";
-import { SCHEMA_VERSION } from "./types";
+let openaiClient: OpenAI | null = null;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY?.trim(),
-});
+function getOpenAIClient(): OpenAI {
+  if (openaiClient) {
+    return openaiClient;
+  }
 
-export async function callOpenAI(systemPrompt: string, userContent: any) {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is required.");
+  }
+
+  openaiClient = new OpenAI({ apiKey });
+  return openaiClient;
+}
+
+export async function callOpenAI(systemPrompt: string, userContent: unknown) {
+  const openai = getOpenAIClient();
   const response = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
