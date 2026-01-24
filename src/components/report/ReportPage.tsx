@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useState, useMemo } from 'react';
 import { ScoreGauge } from './ScoreGauge';
 import { MetricsCards } from './MetricsCards';
