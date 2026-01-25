@@ -1,25 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '@/app/api/jobs/[job_id]/run/route';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
 import { callOpenAI } from '@/lib/openai';
 import { STUB_USER_ID } from '@/lib/types';
 
+const mockFindFirst = vi.fn();
+const mockUpdate = vi.fn();
+const mockFindUnique = vi.fn();
+const mockCreate = vi.fn();
+const mockTransaction = vi.fn((calls: any[]) => Promise.all(calls));
+
 // Mock dependencies
 vi.mock('@/lib/prisma', () => ({
-  default: {
+  default: vi.fn(() => ({
     analysisJob: {
-      findFirst: vi.fn(),
-      update: vi.fn(),
+      findFirst: mockFindFirst,
+      update: mockUpdate,
     },
     scriptSubmission: {
-      findUnique: vi.fn(),
+      findUnique: mockFindUnique,
     },
     analysisReport: {
-      create: vi.fn(),
+      create: mockCreate,
     },
-    $transaction: vi.fn((calls) => Promise.all(calls)),
-  },
+    $transaction: mockTransaction,
+  })),
 }));
 
 vi.mock('@/lib/openai', () => ({
@@ -58,7 +63,7 @@ describe('POST /api/jobs/[job_id]/run', () => {
   });
 
   it('returns 404 when job is not found', async () => {
-    (prisma.analysisJob.findFirst as any).mockResolvedValue(null);
+    mockFindFirst.mockResolvedValue(null);
     
     const req = createRequest();
     const res = await POST(req, { params: Promise.resolve({ job_id: validJobId }) });
@@ -75,7 +80,7 @@ describe('POST /api/jobs/[job_id]/run', () => {
       run_id: 'existing-run-id',
       user_id: STUB_USER_ID,
     };
-    (prisma.analysisJob.findFirst as any).mockResolvedValue(mockJob);
+    mockFindFirst.mockResolvedValue(mockJob);
     
     const req = createRequest();
     const res = await POST(req, { params: Promise.resolve({ job_id: validJobId }) });
@@ -87,7 +92,7 @@ describe('POST /api/jobs/[job_id]/run', () => {
   });
 
   it('returns 409 when job is already running', async () => {
-    (prisma.analysisJob.findFirst as any).mockResolvedValue({
+    mockFindFirst.mockResolvedValue({
       id: validJobId,
       status: 'running',
       user_id: STUB_USER_ID,
@@ -124,7 +129,7 @@ describe('POST /api/jobs/[job_id]/run', () => {
       }
     };
 
-    (prisma.analysisJob.findFirst as any).mockResolvedValue(mockJob);
+    mockFindFirst.mockResolvedValue(mockJob);
     (callOpenAI as any)
       .mockResolvedValueOnce(mockPromptA)
       .mockResolvedValueOnce(mockPromptB);
@@ -138,11 +143,11 @@ describe('POST /api/jobs/[job_id]/run', () => {
     expect(data.run_id).toBeDefined();
     
     // Verify DB updates
-    expect(prisma.analysisJob.update).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: validJobId },
       data: expect.objectContaining({ status: 'running' })
     }));
-    expect(prisma.analysisReport.create).toHaveBeenCalled();
+    expect(mockCreate).toHaveBeenCalled();
   });
 
   it('handles Prompt A validation failure and persists error report', async () => {
@@ -152,7 +157,7 @@ describe('POST /api/jobs/[job_id]/run', () => {
       user_id: STUB_USER_ID,
       script: { text: 'Sample script text for analysis. '.repeat(10) }
     };
-    (prisma.analysisJob.findFirst as any).mockResolvedValue(mockJob);
+    mockFindFirst.mockResolvedValue(mockJob);
     (callOpenAI as any).mockResolvedValue({ invalid: 'schema' });
     
     const req = createRequest();
@@ -161,6 +166,6 @@ describe('POST /api/jobs/[job_id]/run', () => {
 
     expect(res.status).toBe(500);
     expect(data.errors[0].code).toBe('PROMPT_A_FAILED');
-    expect(prisma.analysisReport.create).toHaveBeenCalled();
+    expect(mockCreate).toHaveBeenCalled();
   });
 });

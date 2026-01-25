@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from '@/app/api/jobs/[job_id]/route';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
 import { STUB_USER_ID } from '@/lib/types';
 
+const mockFindUnique = vi.fn();
+
 vi.mock('@/lib/prisma', () => ({
-  default: {
+  default: vi.fn(() => ({
     analysisJob: {
-      findUnique: vi.fn(),
+      findUnique: mockFindUnique,
     },
-  },
+  })),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -38,7 +39,7 @@ describe('GET /api/jobs/[job_id]', () => {
   });
 
   it('returns 404 if job not found', async () => {
-    (prisma.analysisJob.findUnique as any).mockResolvedValue(null);
+    mockFindUnique.mockResolvedValue(null);
     
     const req = new NextRequest(`http://localhost/api/jobs/${validJobId}`);
     const res = await GET(req, { params: Promise.resolve({ job_id: validJobId }) });
@@ -49,7 +50,7 @@ describe('GET /api/jobs/[job_id]', () => {
   });
 
   it('returns 404 if job belongs to another user', async () => {
-    (prisma.analysisJob.findUnique as any).mockResolvedValue({
+    mockFindUnique.mockResolvedValue({
       id: validJobId,
       user_id: 'other-user',
     });
@@ -73,7 +74,7 @@ describe('GET /api/jobs/[job_id]', () => {
       started_at: new Date(),
       completed_at: new Date(),
     };
-    (prisma.analysisJob.findUnique as any).mockResolvedValue(mockJob);
+    mockFindUnique.mockResolvedValue(mockJob);
     
     const req = new NextRequest(`http://localhost/api/jobs/${validJobId}`);
     const res = await GET(req, { params: Promise.resolve({ job_id: validJobId }) });

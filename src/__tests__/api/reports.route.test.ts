@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from '@/app/api/reports/[run_id]/route';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
 import { STUB_USER_ID } from '@/lib/types';
 
+const mockFindUnique = vi.fn();
+
 vi.mock('@/lib/prisma', () => ({
-  default: {
+  default: vi.fn(() => ({
     analysisReport: {
-      findUnique: vi.fn(),
+      findUnique: mockFindUnique,
     },
-  },
+  })),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -38,7 +39,7 @@ describe('GET /api/reports/[run_id]', () => {
   });
 
   it('returns 404 if report not found', async () => {
-    (prisma.analysisReport.findUnique as any).mockResolvedValue(null);
+    mockFindUnique.mockResolvedValue(null);
     
     const req = new NextRequest(`http://localhost/api/reports/${validRunId}`);
     const res = await GET(req, { params: Promise.resolve({ run_id: validRunId }) });
@@ -49,7 +50,7 @@ describe('GET /api/reports/[run_id]', () => {
   });
 
   it('returns 404 if report belongs to another user', async () => {
-    (prisma.analysisReport.findUnique as any).mockResolvedValue({
+    mockFindUnique.mockResolvedValue({
       id: validRunId,
       user_id: 'other-user',
     });
@@ -71,7 +72,7 @@ describe('GET /api/reports/[run_id]', () => {
       output: { schema_version: '1.0.0', run: {}, prompt_a: {}, prompt_b: {} },
       created_at: new Date(),
     };
-    (prisma.analysisReport.findUnique as any).mockResolvedValue(mockReport);
+    mockFindUnique.mockResolvedValue(mockReport);
     
     const req = new NextRequest(`http://localhost/api/reports/${validRunId}`);
     const res = await GET(req, { params: Promise.resolve({ run_id: validRunId }) });

@@ -1,3 +1,4 @@
+import React from 'react';
 import ReportPage from '@/components/report/ReportPage';
 
 interface ReportPageRouteProps {
