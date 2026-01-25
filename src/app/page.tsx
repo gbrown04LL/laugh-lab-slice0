@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 
 export default function Home() {
   const [scriptText, setScriptText] = useState('');
