@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from '@/app/api/health/route';
-import prisma from '@/lib/prisma';
+
+const mockQueryRaw = vi.fn();
 
 vi.mock('@/lib/prisma', () => ({
-  default: {
-    $queryRaw: vi.fn(),
-  },
+  default: vi.fn(() => ({
+    $queryRaw: mockQueryRaw,
+  })),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -23,7 +24,7 @@ describe('GET /api/health', () => {
   });
 
   it('returns 200 and ok:true when database is connected', async () => {
-    (prisma.$queryRaw as any).mockResolvedValue([1]);
+    mockQueryRaw.mockResolvedValue([1]);
     
     const res = await GET();
     const data = await res.json();
@@ -33,7 +34,7 @@ describe('GET /api/health', () => {
   });
 
   it('returns 503 and ok:false when database connection fails', async () => {
-    (prisma.$queryRaw as any).mockRejectedValue(new Error('Connection failed'));
+    mockQueryRaw.mockRejectedValue(new Error('Connection failed'));
     
     const res = await GET();
     const data = await res.json();

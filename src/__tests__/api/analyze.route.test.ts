@@ -3,7 +3,6 @@ import { POST } from '@/app/api/analyze/route';
 import { NextRequest } from 'next/server';
 import { runAnalysisPipeline } from '@/lib/analysis/pipeline';
 import { checkUsageLimit, incrementUsage } from '@/lib/usage';
-import { db } from '@/lib/db';
 
 // Mock dependencies
 vi.mock('@/lib/analysis/pipeline', () => ({
@@ -15,11 +14,18 @@ vi.mock('@/lib/usage', () => ({
   incrementUsage: vi.fn(),
 }));
 
+const mockInsert = vi.fn().mockReturnValue({
+  values: vi.fn().mockResolvedValue({}),
+});
+
 vi.mock('@/lib/db', () => ({
-  db: {
-    insert: vi.fn().mockReturnThis(),
-    values: vi.fn().mockResolvedValue({}),
-  },
+  default: vi.fn(() => ({
+    insert: mockInsert,
+  })),
+}));
+
+vi.mock('@/lib/db/schema', () => ({
+  analyses: 'analyses',
 }));
 
 describe('POST /api/analyze', () => {
@@ -127,7 +133,7 @@ describe('POST /api/analyze', () => {
     expect(data.remaining).toBe(1);
     
     // Verify DB save and usage increment
-    expect(db.insert).toHaveBeenCalled();
+    expect(mockInsert).toHaveBeenCalled();
     expect(incrementUsage).toHaveBeenCalledWith('test-fingerprint');
   });
 

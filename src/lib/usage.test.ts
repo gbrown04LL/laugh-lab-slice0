@@ -1,38 +1,49 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { checkUsageLimit, incrementUsage } from './usage';
-import * as dbModule from './db';
 
-// Mock the database module
-vi.mock('./db', () => ({
-  db: {
-    query: {
-      usageTracking: {
-        findFirst: vi.fn(),
-      },
+// Create mock functions at module level
+const mockFindFirst = vi.fn();
+const mockValues = vi.fn();
+const mockWhere = vi.fn();
+const mockSet = vi.fn(() => ({ where: mockWhere }));
+const mockInsert = vi.fn(() => ({ values: mockValues }));
+const mockUpdate = vi.fn(() => ({ set: mockSet }));
+
+const mockDb = {
+  query: {
+    usageTracking: {
+      findFirst: mockFindFirst,
     },
-    insert: vi.fn(() => ({
-      values: vi.fn(),
-    })),
-    update: vi.fn(() => ({
-      set: vi.fn(() => ({
-        where: vi.fn(),
-      })),
-    })),
   },
+  insert: mockInsert,
+  update: mockUpdate,
+};
+
+// Mock the database module - default export is a function that returns the db
+vi.mock('./db', () => ({
+  default: vi.fn(() => mockDb),
+  getDb: vi.fn(() => mockDb),
+}));
+
+// Also mock the schema to prevent import errors
+vi.mock('./db/schema', () => ({
+  usageTracking: 'usageTracking',
 }));
 
 describe('Usage Tracking', () => {
-  const mockDb = dbModule.db as any;
-
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset mock implementations
+    mockSet.mockReturnValue({ where: mockWhere });
+    mockInsert.mockReturnValue({ values: mockValues });
+    mockUpdate.mockReturnValue({ set: mockSet });
     // Reset the system time
     vi.useRealTimers();
   });
 
   describe('checkUsageLimit', () => {
     it('should allow first-time user', async () => {
-      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+      mockFindFirst.mockResolvedValue(null);
 
       const result = await checkUsageLimit('new-user');
 
@@ -46,7 +57,7 @@ describe('Usage Tracking', () => {
       const currentMonth = new Date();
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 1,
         monthKey,
@@ -65,7 +76,7 @@ describe('Usage Tracking', () => {
       const currentMonth = new Date();
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 2,
         monthKey,
@@ -85,7 +96,7 @@ describe('Usage Tracking', () => {
       const currentMonth = new Date();
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 5,
         monthKey,
@@ -106,20 +117,13 @@ describe('Usage Tracking', () => {
       lastMonth.setMonth(lastMonth.getMonth() - 1);
       const oldMonthKey = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 2,
         monthKey: oldMonthKey,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-
-      const mockUpdate = vi.fn(() => ({
-        set: vi.fn(() => ({
-          where: vi.fn(),
-        })),
-      }));
-      mockDb.update = mockUpdate;
 
       const result = await checkUsageLimit('user-1');
 
@@ -133,7 +137,7 @@ describe('Usage Tracking', () => {
       const currentMonth = new Date();
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 2,
         monthKey,
@@ -151,7 +155,7 @@ describe('Usage Tracking', () => {
       const currentMonth = new Date();
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: null,
         monthKey,
@@ -170,7 +174,7 @@ describe('Usage Tracking', () => {
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
       // Test with count = 0
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 0,
         monthKey,
@@ -182,7 +186,7 @@ describe('Usage Tracking', () => {
       expect(result.remaining).toBe(2);
 
       // Test with count = 1
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 1,
         monthKey,
@@ -199,7 +203,7 @@ describe('Usage Tracking', () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2024-01-15'));
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 0,
         monthKey: '2024-01',
@@ -213,7 +217,7 @@ describe('Usage Tracking', () => {
       // Test December
       vi.setSystemTime(new Date('2024-12-15'));
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 0,
         monthKey: '2024-12',
@@ -230,12 +234,7 @@ describe('Usage Tracking', () => {
 
   describe('incrementUsage', () => {
     it('should create new record for first-time user', async () => {
-      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
-
-      const mockInsert = vi.fn(() => ({
-        values: vi.fn(),
-      }));
-      mockDb.insert = mockInsert;
+      mockFindFirst.mockResolvedValue(null);
 
       await incrementUsage('new-user');
 
@@ -243,13 +242,7 @@ describe('Usage Tracking', () => {
     });
 
     it('should insert with count of 1 for new user', async () => {
-      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
-
-      const mockValues = vi.fn();
-      const mockInsert = vi.fn(() => ({
-        values: mockValues,
-      }));
-      mockDb.insert = mockInsert;
+      mockFindFirst.mockResolvedValue(null);
 
       await incrementUsage('new-user');
 
@@ -265,22 +258,13 @@ describe('Usage Tracking', () => {
       const currentMonth = new Date();
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 1,
         monthKey,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-
-      const mockWhere = vi.fn();
-      const mockSet = vi.fn(() => ({
-        where: mockWhere,
-      }));
-      const mockUpdate = vi.fn(() => ({
-        set: mockSet,
-      }));
-      mockDb.update = mockUpdate;
 
       await incrementUsage('user-1');
 
@@ -296,22 +280,13 @@ describe('Usage Tracking', () => {
       const currentMonth = new Date();
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 0,
         monthKey,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-
-      const mockWhere = vi.fn();
-      const mockSet = vi.fn(() => ({
-        where: mockWhere,
-      }));
-      const mockUpdate = vi.fn(() => ({
-        set: mockSet,
-      }));
-      mockDb.update = mockUpdate;
 
       await incrementUsage('user-1');
 
@@ -326,22 +301,13 @@ describe('Usage Tracking', () => {
       const currentMonth = new Date();
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: null,
         monthKey,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-
-      const mockWhere = vi.fn();
-      const mockSet = vi.fn(() => ({
-        where: mockWhere,
-      }));
-      const mockUpdate = vi.fn(() => ({
-        set: mockSet,
-      }));
-      mockDb.update = mockUpdate;
 
       await incrementUsage('user-1');
 
@@ -353,16 +319,10 @@ describe('Usage Tracking', () => {
     });
 
     it('should set monthKey for new user', async () => {
-      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+      mockFindFirst.mockResolvedValue(null);
 
       const currentMonth = new Date();
       const expectedMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
-
-      const mockValues = vi.fn();
-      const mockInsert = vi.fn(() => ({
-        values: mockValues,
-      }));
-      mockDb.insert = mockInsert;
 
       await incrementUsage('new-user');
 
@@ -377,22 +337,13 @@ describe('Usage Tracking', () => {
       const currentMonth = new Date();
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 1,
         monthKey,
         createdAt: new Date(),
         updatedAt: new Date('2024-01-01'),
       });
-
-      const mockWhere = vi.fn();
-      const mockSet = vi.fn(() => ({
-        where: mockWhere,
-      }));
-      const mockUpdate = vi.fn(() => ({
-        set: mockSet,
-      }));
-      mockDb.update = mockUpdate;
 
       await incrementUsage('user-1');
 
@@ -420,14 +371,13 @@ describe('Usage Tracking', () => {
 
       for (const { date, expected } of months) {
         vi.setSystemTime(new Date(date));
+        vi.clearAllMocks();
+        // Reset mock chain
+        mockSet.mockReturnValue({ where: mockWhere });
+        mockInsert.mockReturnValue({ values: mockValues });
+        mockUpdate.mockReturnValue({ set: mockSet });
 
-        mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
-
-        const mockValues = vi.fn();
-        const mockInsert = vi.fn(() => ({
-          values: mockValues,
-        }));
-        mockDb.insert = mockInsert;
+        mockFindFirst.mockResolvedValue(null);
 
         await incrementUsage('test-user');
 
@@ -436,8 +386,6 @@ describe('Usage Tracking', () => {
             monthKey: expected,
           })
         );
-
-        vi.clearAllMocks();
       }
 
       vi.useRealTimers();
@@ -448,11 +396,7 @@ describe('Usage Tracking', () => {
 
       // Test December to January transition
       vi.setSystemTime(new Date('2024-12-31'));
-      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
-
-      let mockValues = vi.fn();
-      let mockInsert = vi.fn(() => ({ values: mockValues }));
-      mockDb.insert = mockInsert;
+      mockFindFirst.mockResolvedValue(null);
 
       await incrementUsage('test-user');
       expect(mockValues).toHaveBeenCalledWith(
@@ -460,13 +404,13 @@ describe('Usage Tracking', () => {
       );
 
       vi.clearAllMocks();
+      // Reset mock chain
+      mockSet.mockReturnValue({ where: mockWhere });
+      mockInsert.mockReturnValue({ values: mockValues });
+      mockUpdate.mockReturnValue({ set: mockSet });
 
       vi.setSystemTime(new Date('2025-01-01'));
-      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
-
-      mockValues = vi.fn();
-      mockInsert = vi.fn(() => ({ values: mockValues }));
-      mockDb.insert = mockInsert;
+      mockFindFirst.mockResolvedValue(null);
 
       await incrementUsage('test-user');
       expect(mockValues).toHaveBeenCalledWith(
@@ -483,13 +427,13 @@ describe('Usage Tracking', () => {
       const monthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
       // Check 1: New user
-      mockDb.query.usageTracking.findFirst.mockResolvedValue(null);
+      mockFindFirst.mockResolvedValue(null);
       let result = await checkUsageLimit('user-1');
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(2);
 
       // Use 1: After first usage
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 1,
         monthKey,
@@ -502,7 +446,7 @@ describe('Usage Tracking', () => {
       expect(result.remaining).toBe(1);
 
       // Use 2: After second usage
-      mockDb.query.usageTracking.findFirst.mockResolvedValue({
+      mockFindFirst.mockResolvedValue({
         identifier: 'user-1',
         monthlyCount: 2,
         monthKey,

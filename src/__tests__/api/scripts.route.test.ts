@@ -1,15 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '@/app/api/scripts/route';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
 import { STUB_USER_ID } from '@/lib/types';
 
+const mockCreate = vi.fn();
+
 vi.mock('@/lib/prisma', () => ({
-  default: {
+  default: vi.fn(() => ({
     scriptSubmission: {
-      create: vi.fn(),
+      create: mockCreate,
     },
-  },
+  })),
+  getPrismaClient: vi.fn(() => ({
+    scriptSubmission: {
+      create: mockCreate,
+    },
+  })),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -56,7 +62,7 @@ describe('POST /api/scripts', () => {
       user_id: STUB_USER_ID,
       created_at: new Date(),
     };
-    (prisma.scriptSubmission.create as any).mockResolvedValue(mockScript);
+    mockCreate.mockResolvedValue(mockScript);
     
     const req = new NextRequest('http://localhost/api/scripts', {
       method: 'POST',
@@ -70,7 +76,7 @@ describe('POST /api/scripts', () => {
   });
 
   it('returns 500 on database failure', async () => {
-    (prisma.scriptSubmission.create as any).mockRejectedValue(new Error('DB Error'));
+    mockCreate.mockRejectedValue(new Error('DB Error'));
     
     const req = new NextRequest('http://localhost/api/scripts', {
       method: 'POST',

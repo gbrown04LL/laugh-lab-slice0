@@ -1,18 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '@/app/api/jobs/route';
 import { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
 import { STUB_USER_ID } from '@/lib/types';
 
+const mockFindUnique = vi.fn();
+const mockCreate = vi.fn();
+
 vi.mock('@/lib/prisma', () => ({
-  default: {
+  default: vi.fn(() => ({
     scriptSubmission: {
-      findUnique: vi.fn(),
+      findUnique: mockFindUnique,
     },
     analysisJob: {
-      create: vi.fn(),
+      create: mockCreate,
     },
-  },
+  })),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -44,7 +46,7 @@ describe('POST /api/jobs', () => {
   });
 
   it('returns 404 if script does not exist', async () => {
-    (prisma.scriptSubmission.findUnique as any).mockResolvedValue(null);
+    mockFindUnique.mockResolvedValue(null);
     
     const req = new NextRequest('http://localhost/api/jobs', {
       method: 'POST',
@@ -58,7 +60,7 @@ describe('POST /api/jobs', () => {
   });
 
   it('returns 404 if script belongs to another user', async () => {
-    (prisma.scriptSubmission.findUnique as any).mockResolvedValue({
+    mockFindUnique.mockResolvedValue({
       id: validScriptId,
       user_id: 'other-user',
     });
@@ -75,7 +77,7 @@ describe('POST /api/jobs', () => {
   });
 
   it('returns 201 and created job on success', async () => {
-    (prisma.scriptSubmission.findUnique as any).mockResolvedValue({
+    mockFindUnique.mockResolvedValue({
       id: validScriptId,
       user_id: STUB_USER_ID,
     });
@@ -89,7 +91,7 @@ describe('POST /api/jobs', () => {
       started_at: null,
       completed_at: null,
     };
-    (prisma.analysisJob.create as any).mockResolvedValue(mockJob);
+    mockCreate.mockResolvedValue(mockJob);
     
     const req = new NextRequest('http://localhost/api/jobs', {
       method: 'POST',
