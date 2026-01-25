@@ -205,7 +205,7 @@ if (response.remaining === 0) {
 
 ### High Priority
 - [ ] Add comprehensive error messages for LLM failures
-- [ ] Implement retry logic for transient OpenAI errors
+- [x] Implement retry logic for transient OpenAI errors
 - [ ] Add request timeout handling (max 60s)
 - [ ] Optimize LLM token usage to reduce costs
 

@@ -409,7 +409,8 @@ describe('OpenAI Client', () => {
     it('should handle network errors', async () => {
       mockCreate.mockRejectedValue(new Error('Network timeout'));
 
-      const result = await callLLM('System', 'User');
+      // Disable retries to avoid test timeout
+      const result = await callLLM('System', 'User', { maxRetries: 0 });
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Network timeout');
@@ -428,9 +429,12 @@ describe('OpenAI Client', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockCreate.mockRejectedValue(new Error('Test error'));
 
-      await callLLM('System', 'User');
+      await callLLM('System', 'User', { maxRetries: 0 });
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith('[LLM Error]', 'Test error');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[LLM Error] All retries exhausted or non-retryable error:',
+        'Test error'
+      );
 
       consoleErrorSpy.mockRestore();
     });
@@ -509,6 +513,102 @@ describe('OpenAI Client', () => {
         completionTokens: 0,
         totalTokens: 0,
       });
+    });
+  });
+
+  describe('callLLM - Retry Logic', () => {
+    beforeEach(() => {
+      mockCreate.mockReset();
+    });
+
+    it('should retry on transient errors and eventually succeed', async () => {
+      // Fail twice with retryable errors, then succeed
+      mockCreate
+        .mockRejectedValueOnce(new Error('socket hang up'))
+        .mockRejectedValueOnce(new Error('ECONNRESET'))
+        .mockResolvedValueOnce({
+          choices: [{ message: { content: 'Success after retries' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+        });
+
+      const result = await callLLM('System', 'User', {
+        maxRetries: 3,
+        baseDelayMs: 10, // Use short delay for tests
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data).toBe('Success after retries');
+      expect(mockCreate).toHaveBeenCalledTimes(3);
+    });
+
+    it('should exhaust retries and return error', async () => {
+      // Always fail with a retryable error
+      const timeoutError = new Error('ECONNREFUSED');
+      mockCreate.mockRejectedValue(timeoutError);
+
+      const result = await callLLM('System', 'User', {
+        maxRetries: 2,
+        baseDelayMs: 10,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('ECONNREFUSED');
+      expect(mockCreate).toHaveBeenCalledTimes(3); // Initial + 2 retries
+    });
+
+    it('should not retry on non-retryable errors', async () => {
+      // A generic error without "timeout", "network", etc. should not be retried
+      mockCreate.mockRejectedValue(new Error('Invalid API key'));
+
+      const result = await callLLM('System', 'User', {
+        maxRetries: 3,
+        baseDelayMs: 10,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Invalid API key');
+      expect(mockCreate).toHaveBeenCalledTimes(1); // No retries
+    });
+
+    it('should retry on rate limit errors (status 429)', async () => {
+      // Create a mock error with status
+      const rateLimitError = new Error('Rate limited');
+      (rateLimitError as Error & { status: number }).status = 429;
+
+      mockCreate
+        .mockRejectedValueOnce(rateLimitError)
+        .mockResolvedValueOnce({
+          choices: [{ message: { content: 'Success' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+        });
+
+      const result = await callLLM('System', 'User', {
+        maxRetries: 2,
+        baseDelayMs: 10,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockCreate).toHaveBeenCalledTimes(2);
+    });
+
+    it('should retry on server errors (status 500+)', async () => {
+      const serverError = new Error('Internal server error');
+      (serverError as Error & { status: number }).status = 503;
+
+      mockCreate
+        .mockRejectedValueOnce(serverError)
+        .mockResolvedValueOnce({
+          choices: [{ message: { content: 'Success' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
+        });
+
+      const result = await callLLM('System', 'User', {
+        maxRetries: 2,
+        baseDelayMs: 10,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockCreate).toHaveBeenCalledTimes(2);
     });
   });
 
