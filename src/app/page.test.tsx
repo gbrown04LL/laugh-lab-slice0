@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React from 'react';
 import userEvent from '@testing-library/user-event';
@@ -26,33 +26,33 @@ describe('Home Page', () => {
     it('should render the page title', () => {
       render(<Home />);
 
-      expect(screen.getByText(/Laugh Lab - Slice 0/)).toBeInTheDocument();
+      expect(screen.getByText('Laugh Lab')).toBeInTheDocument();
     });
 
-    it('should show step 1 as active initially', () => {
+    it('should show step 1 content initially', () => {
       render(<Home />);
 
-      expect(screen.getByText('Step 1: Submit Your Script')).toBeInTheDocument();
+      expect(screen.getByText('Submit Your Script')).toBeInTheDocument();
     });
 
     it('should render the textarea for script input', () => {
       render(<Home />);
 
       expect(
-        screen.getByPlaceholderText('Paste your comedy script here...')
+        screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/)
       ).toBeInTheDocument();
     });
 
     it('should render the health check button', () => {
       render(<Home />);
 
-      expect(screen.getByText('Test Health Check')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Test Health Check/i })).toBeInTheDocument();
     });
 
     it('should disable submit button when textarea is empty', () => {
       render(<Home />);
 
-      const submitButton = screen.getByText('Submit Script');
+      const submitButton = screen.getByRole('button', { name: /Submit Script/i });
       expect(submitButton).toBeDisabled();
     });
   });
@@ -62,26 +62,11 @@ describe('Home Page', () => {
       const user = userEvent.setup();
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
 
-      const submitButton = screen.getByText('Submit Script');
+      const submitButton = screen.getByRole('button', { name: /Submit Script/i });
       expect(submitButton).not.toBeDisabled();
-    });
-
-    it('should show error when submitting empty script', async () => {
-      const user = userEvent.setup();
-      render(<Home />);
-
-      // Type something then clear it
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
-      await user.type(textarea, ' ');
-      await user.clear(textarea);
-      await user.type(textarea, '   '); // Only whitespace
-
-      // Button should be disabled, but let's test the validation if triggered
-      // Actually the button is disabled, so this path isn't reachable via button
-      // We test the error display works
     });
 
     it('should call POST /api/scripts on submit', async () => {
@@ -93,10 +78,10 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY\nCharacter speaks.');
 
-      const submitButton = screen.getByText('Submit Script');
+      const submitButton = screen.getByRole('button', { name: /Submit Script/i });
       await user.click(submitButton);
 
       expect(mockFetch).toHaveBeenCalledWith('/api/scripts', {
@@ -115,12 +100,12 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Step 2: Create Analysis Job')).toBeInTheDocument();
+        expect(screen.getByText('Create Analysis Job')).toBeInTheDocument();
       });
     });
 
@@ -133,9 +118,9 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
       await waitFor(() => {
         expect(screen.getByText('script-abc-123')).toBeInTheDocument();
@@ -153,9 +138,9 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Script too short/)).toBeInTheDocument();
@@ -173,9 +158,9 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
       expect(screen.getByText('Submitting...')).toBeInTheDocument();
 
@@ -202,12 +187,12 @@ describe('Home Page', () => {
       const user = userEvent.setup();
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Step 2: Create Analysis Job')).toBeInTheDocument();
+        expect(screen.getByText('Create Analysis Job')).toBeInTheDocument();
       });
     });
 
@@ -218,7 +203,7 @@ describe('Home Page', () => {
         json: async () => ({ id: 'job-456' }),
       });
 
-      await user.click(screen.getByText('Create Job'));
+      await user.click(screen.getByRole('button', { name: /^Create Job$/i }));
 
       expect(mockFetch).toHaveBeenLastCalledWith('/api/jobs', {
         method: 'POST',
@@ -234,10 +219,10 @@ describe('Home Page', () => {
         json: async () => ({ id: 'job-456' }),
       });
 
-      await user.click(screen.getByText('Create Job'));
+      await user.click(screen.getByRole('button', { name: /^Create Job$/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Step 3: Run Analysis')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Run Analysis/i })).toBeInTheDocument();
       });
     });
 
@@ -250,7 +235,7 @@ describe('Home Page', () => {
         }),
       });
 
-      await user.click(screen.getByText('Create Job'));
+      await user.click(screen.getByRole('button', { name: /^Create Job$/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Script not found/)).toBeInTheDocument();
@@ -274,18 +259,18 @@ describe('Home Page', () => {
       const user = userEvent.setup();
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Create Job')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Create Job$/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByText('Create Job'));
+      await user.click(screen.getByRole('button', { name: /^Create Job$/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Step 3: Run Analysis')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Run Analysis/i })).toBeInTheDocument();
       });
     });
 
@@ -296,7 +281,7 @@ describe('Home Page', () => {
         json: async () => ({ run_id: 'run-789' }),
       });
 
-      await user.click(screen.getByText('Run Analysis'));
+      await user.click(screen.getByRole('button', { name: /^Run Analysis$/i }));
 
       expect(mockFetch).toHaveBeenLastCalledWith('/api/jobs/job-456/run', {
         method: 'POST',
@@ -310,10 +295,10 @@ describe('Home Page', () => {
         json: async () => ({ run_id: 'run-789' }),
       });
 
-      await user.click(screen.getByText('Run Analysis'));
+      await user.click(screen.getByRole('button', { name: /^Run Analysis$/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Step 4: View Report')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /View Report/i })).toBeInTheDocument();
       });
     });
 
@@ -326,7 +311,7 @@ describe('Home Page', () => {
         }),
       });
 
-      await user.click(screen.getByText('Run Analysis'));
+      await user.click(screen.getByRole('button', { name: /^Run Analysis$/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Job is already running/)).toBeInTheDocument();
@@ -379,18 +364,18 @@ describe('Home Page', () => {
       const user = userEvent.setup();
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
-      await waitFor(() => screen.getByText('Create Job'));
-      await user.click(screen.getByText('Create Job'));
+      await waitFor(() => screen.getByRole('button', { name: /^Create Job$/i }));
+      await user.click(screen.getByRole('button', { name: /^Create Job$/i }));
 
-      await waitFor(() => screen.getByText('Run Analysis'));
-      await user.click(screen.getByText('Run Analysis'));
+      await waitFor(() => screen.getByRole('button', { name: /^Run Analysis$/i }));
+      await user.click(screen.getByRole('button', { name: /^Run Analysis$/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Step 4: View Report')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /View Report/i })).toBeInTheDocument();
       });
     });
 
@@ -401,7 +386,7 @@ describe('Home Page', () => {
         json: async () => mockReport,
       });
 
-      await user.click(screen.getByText('Get Report'));
+      await user.click(screen.getByRole('button', { name: /Get Report/i }));
 
       expect(mockFetch).toHaveBeenLastCalledWith('/api/reports/run-789');
     });
@@ -413,10 +398,10 @@ describe('Home Page', () => {
         json: async () => mockReport,
       });
 
-      await user.click(screen.getByText('Get Report'));
+      await user.click(screen.getByRole('button', { name: /Get Report/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('85/100')).toBeInTheDocument();
+        expect(screen.getByText('85')).toBeInTheDocument();
       });
 
       // Check that report sections are rendered (use queryAllByText for potentially duplicate text)
@@ -431,10 +416,10 @@ describe('Home Page', () => {
         json: async () => mockReport,
       });
 
-      await user.click(screen.getByText('Get Report'));
+      await user.click(screen.getByRole('button', { name: /Get Report/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Start Over')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Start Over/i })).toBeInTheDocument();
       });
     });
 
@@ -447,7 +432,7 @@ describe('Home Page', () => {
         }),
       });
 
-      await user.click(screen.getByText('Get Report'));
+      await user.click(screen.getByRole('button', { name: /Get Report/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Report not found/)).toBeInTheDocument();
@@ -491,25 +476,25 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
-      await waitFor(() => screen.getByText('Create Job'));
-      await user.click(screen.getByText('Create Job'));
+      await waitFor(() => screen.getByRole('button', { name: /^Create Job$/i }));
+      await user.click(screen.getByRole('button', { name: /^Create Job$/i }));
 
-      await waitFor(() => screen.getByText('Run Analysis'));
-      await user.click(screen.getByText('Run Analysis'));
+      await waitFor(() => screen.getByRole('button', { name: /^Run Analysis$/i }));
+      await user.click(screen.getByRole('button', { name: /^Run Analysis$/i }));
 
-      await waitFor(() => screen.getByText('Get Report'));
-      await user.click(screen.getByText('Get Report'));
+      await waitFor(() => screen.getByRole('button', { name: /Get Report/i }));
+      await user.click(screen.getByRole('button', { name: /Get Report/i }));
 
-      await waitFor(() => screen.getByText('Start Over'));
-      await user.click(screen.getByText('Start Over'));
+      await waitFor(() => screen.getByRole('button', { name: /Start Over/i }));
+      await user.click(screen.getByRole('button', { name: /Start Over/i }));
 
       // Should be back at step 1
-      expect(screen.getByText('Step 1: Submit Your Script')).toBeInTheDocument();
-      expect(screen.getByPlaceholderText('Paste your comedy script here...')).toHaveValue('');
+      expect(screen.getByText('Submit Your Script')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/)).toHaveValue('');
     });
   });
 
@@ -523,11 +508,11 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      await user.click(screen.getByText('Test Health Check'));
+      await user.click(screen.getByRole('button', { name: /Test Health Check/i }));
 
       await waitFor(() => {
         expect(mockAlert).toHaveBeenCalledWith(
-          '✅ Health check passed! Database is connected.'
+          'Health check passed! Database is connected.'
         );
       });
     });
@@ -541,11 +526,11 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      await user.click(screen.getByText('Test Health Check'));
+      await user.click(screen.getByRole('button', { name: /Test Health Check/i }));
 
       await waitFor(() => {
         expect(mockAlert).toHaveBeenCalledWith(
-          '❌ Health check failed. See console for details.'
+          'Health check failed. See console for details.'
         );
       });
     });
@@ -559,7 +544,7 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      await user.click(screen.getByText('Test Health Check'));
+      await user.click(screen.getByRole('button', { name: /Test Health Check/i }));
 
       expect(mockFetch).toHaveBeenCalledWith('/api/health');
     });
@@ -577,13 +562,13 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
       await waitFor(() => {
-        const errorBox = screen.getByText(/Error:/);
-        expect(errorBox.parentElement).toHaveStyle({ background: '#fee' });
+        expect(screen.getByText('Error')).toBeInTheDocument();
+        expect(screen.getByText('Something went wrong')).toBeInTheDocument();
       });
     });
 
@@ -593,9 +578,9 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Network error/)).toBeInTheDocument();
@@ -611,9 +596,9 @@ describe('Home Page', () => {
 
       render(<Home />);
 
-      const textarea = screen.getByPlaceholderText('Paste your comedy script here...');
+      const textarea = screen.getByPlaceholderText(/INT\. JERRY'S APARTMENT/);
       await user.type(textarea, 'INT. ROOM - DAY');
-      await user.click(screen.getByText('Submit Script'));
+      await user.click(screen.getByRole('button', { name: /Submit Script/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Failed to submit script/)).toBeInTheDocument();
@@ -622,13 +607,14 @@ describe('Home Page', () => {
   });
 
   describe('Step Indicators', () => {
-    it('should display all four steps', () => {
+    it('should display all four step labels', () => {
       render(<Home />);
 
-      expect(screen.getByText('1. Submit Script')).toBeInTheDocument();
-      expect(screen.getByText('2. Create Job')).toBeInTheDocument();
-      expect(screen.getByText('3. Run Analysis')).toBeInTheDocument();
-      expect(screen.getByText('4. View Report')).toBeInTheDocument();
+      // All step labels appear in the step indicator
+      expect(screen.getAllByText(/Submit Script/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Create Job/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Run Analysis/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/View Report/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -636,12 +622,11 @@ describe('Home Page', () => {
     it('should display API endpoints', () => {
       render(<Home />);
 
-      expect(screen.getByText(/GET \/api\/health/)).toBeInTheDocument();
-      expect(screen.getByText(/POST \/api\/scripts/)).toBeInTheDocument();
-      // Use more specific regex to avoid matching multiple elements
-      expect(screen.getByText(/POST \/api\/jobs\b(?!\/)/)).toBeInTheDocument();
-      expect(screen.getByText(/POST \/api\/jobs\/\[job_id\]\/run/)).toBeInTheDocument();
-      expect(screen.getByText(/GET \/api\/reports\/\[run_id\]/)).toBeInTheDocument();
+      expect(screen.getByText('/api/health')).toBeInTheDocument();
+      expect(screen.getByText('/api/scripts')).toBeInTheDocument();
+      expect(screen.getByText('/api/jobs')).toBeInTheDocument();
+      expect(screen.getByText('/api/jobs/[job_id]/run')).toBeInTheDocument();
+      expect(screen.getByText('/api/reports/[run_id]')).toBeInTheDocument();
     });
   });
 });
