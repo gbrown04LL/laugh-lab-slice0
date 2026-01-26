@@ -58,20 +58,21 @@ export default function ReportPage({ data, scriptTitle, isAnalyzing = false, sta
   }, [data]);
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100">
       <AnalysisProgress isAnalyzing={isAnalyzing} stage={stage} />
 
       <div className="max-w-4xl mx-auto px-4 py-10">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
             {scriptTitle || 'Analysis Report'}
           </h1>
+          <div className="mt-2 h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" />
         </div>
 
         {/* Score + Metrics */}
-        <div className="grid gap-4 mb-8">
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+        <div className="grid gap-6 mb-8">
+          <div className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1),0_8px_40px_-8px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.15),0_16px_50px_-8px_rgba(0,0,0,0.08)] transition-all duration-300">
             <ScoreGauge score={overallScore} />
           </div>
           <MetricsCards lpm={lpm} linesPerJoke={linesPerJoke} ensembleBalance={ensembleBalance} />
@@ -85,22 +86,22 @@ export default function ReportPage({ data, scriptTitle, isAnalyzing = false, sta
 
         {/* Raw JSON */}
         <section className="mt-10">
-          <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl shadow-[0_2px_12px_-2px_rgba(0,0,0,0.08)] overflow-hidden hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.12)] transition-all duration-300">
             <button
               onClick={() => setShowRaw(!showRaw)}
-              className="w-full p-5 text-left flex justify-between items-center"
+              className="w-full p-5 text-left flex justify-between items-center group"
             >
               <div>
-                <p className="font-semibold text-gray-900">View Raw JSON</p>
+                <p className="font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">View Full JSON Report</p>
                 <p className="text-sm text-gray-500">Debug payload from the analysis pipeline</p>
               </div>
-              <span className="text-xs text-gray-500 border border-gray-200 rounded-full px-3 py-1">
+              <span className="text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded-full px-3 py-1.5 font-medium group-hover:bg-gray-200 transition-colors">
                 {showRaw ? 'Hide' : 'Show'}
               </span>
             </button>
             {showRaw && (
-              <div className="border-t border-gray-100 p-5">
-                <pre className="bg-gray-900 text-gray-100 text-xs p-4 rounded-xl overflow-auto max-h-96">
+              <div className="border-t border-gray-200/50 p-5 bg-gradient-to-b from-gray-50/50 to-transparent">
+                <pre className="bg-gradient-to-br from-gray-900 to-gray-800 text-gray-100 text-xs p-5 rounded-xl overflow-auto max-h-96 shadow-inner">
                   {rawJson || 'No data'}
                 </pre>
               </div>
