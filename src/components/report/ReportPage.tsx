@@ -4,6 +4,7 @@ import React from 'react';
 import { useState, useMemo } from 'react';
 import { ScoreGauge } from './ScoreGauge';
 import { MetricsCards } from './MetricsCards';
+import { ExecutiveSummary } from './ExecutiveSummary';
 import { StrengthsSection } from './StrengthsSection';
 import { OpportunitiesSection, OpportunityItem } from './OpportunitiesSection';
 import { PunchUpWorkshop, PunchUpMoment } from './PunchUpWorkshop';
@@ -61,53 +62,104 @@ export default function ReportPage({ data, scriptTitle, isAnalyzing = false, sta
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100">
       <AnalysisProgress isAnalyzing={isAnalyzing} stage={stage} />
 
-      <div className="max-w-4xl mx-auto px-4 py-10">
+      <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
-            {scriptTitle || 'Analysis Report'}
-          </h1>
-          <div className="mt-2 h-1 w-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" />
+        <div className="mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {scriptTitle || 'Analysis Report'}
+              </h1>
+              <p className="text-sm text-gray-500">Comedy script analysis results</p>
+            </div>
+          </div>
         </div>
 
-        {/* Score + Metrics */}
-        <div className="grid gap-6 mb-8">
-          <div className="bg-white/80 backdrop-blur-sm border border-white/50 rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1),0_8px_40px_-8px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.15),0_16px_50px_-8px_rgba(0,0,0,0.08)] transition-all duration-300">
+        {/* Top Section: Score + Summary side by side */}
+        <div className="grid md:grid-cols-[280px_1fr] gap-6 mb-6">
+          {/* Score Card */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <ScoreGauge score={overallScore} />
           </div>
-          <MetricsCards lpm={lpm} linesPerJoke={linesPerJoke} ensembleBalance={ensembleBalance} />
+
+          {/* Summary + Quick Stats */}
+          <div className="flex flex-col gap-4">
+            <ExecutiveSummary
+              score={overallScore}
+              strengthsCount={strengths.length}
+              opportunitiesCount={opportunities.length}
+              punchUpsCount={punchUps.length}
+            />
+            <MetricsCards lpm={lpm} linesPerJoke={linesPerJoke} ensembleBalance={ensembleBalance} />
+          </div>
         </div>
 
         {/* Feedback Sections */}
-        <StrengthsSection strengths={strengths} />
-        <OpportunitiesSection opportunities={opportunities} />
-        <PunchUpWorkshop moments={punchUps} />
-        <CharacterBalanceChart characters={characters} />
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-6">
+            <StrengthsSection strengths={strengths} />
+            <CharacterBalanceChart characters={characters} />
+          </div>
+          <div className="space-y-6">
+            <OpportunitiesSection opportunities={opportunities} />
+            <PunchUpWorkshop moments={punchUps} />
+          </div>
+        </div>
 
-        {/* Raw JSON */}
-        <section className="mt-10">
-          <div className="bg-white/70 backdrop-blur-sm border border-gray-200/50 rounded-2xl shadow-[0_2px_12px_-2px_rgba(0,0,0,0.08)] overflow-hidden hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.12)] transition-all duration-300">
-            <button
-              onClick={() => setShowRaw(!showRaw)}
-              className="w-full p-5 text-left flex justify-between items-center group"
-            >
-              <div>
-                <p className="font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">View Full JSON Report</p>
-                <p className="text-sm text-gray-500">Debug payload from the analysis pipeline</p>
-              </div>
-              <span className="text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded-full px-3 py-1.5 font-medium group-hover:bg-gray-200 transition-colors">
-                {showRaw ? 'Hide' : 'Show'}
-              </span>
-            </button>
-            {showRaw && (
-              <div className="border-t border-gray-200/50 p-5 bg-gradient-to-b from-gray-50/50 to-transparent">
-                <pre className="bg-gradient-to-br from-gray-900 to-gray-800 text-gray-100 text-xs p-5 rounded-xl overflow-auto max-h-96 shadow-inner">
-                  {rawJson || 'No data'}
-                </pre>
-              </div>
-            )}
+        {/* Quick Actions */}
+        <section className="mt-8">
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200/60 rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Next Steps</h3>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="/"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Analyze Another Script
+              </a>
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print Report
+              </button>
+              <button
+                onClick={() => setShowRaw(!showRaw)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                {showRaw ? 'Hide' : 'View'} JSON Data
+              </button>
+            </div>
           </div>
         </section>
+
+        {/* Raw JSON (collapsible) */}
+        {showRaw && (
+          <section className="mt-4">
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="p-3 bg-gray-50 border-b border-gray-200">
+                <p className="text-xs font-medium text-gray-600">Raw JSON Response</p>
+              </div>
+              <pre className="bg-gray-900 text-gray-100 text-xs p-4 overflow-auto max-h-80">
+                {rawJson || 'No data'}
+              </pre>
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );

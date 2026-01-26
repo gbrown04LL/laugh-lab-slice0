@@ -9,22 +9,24 @@ export function StrengthsSection({ strengths }: StrengthsSectionProps) {
   if (!strengths?.length) return null;
 
   return (
-    <section className="mt-8">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 shadow-lg shadow-green-500/25">
-          <span className="text-white text-sm">✓</span>
+    <section>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-400 to-green-500 shadow-sm">
+          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+          </svg>
         </div>
-        <h2 className="text-xl font-bold text-gray-900">What's Working</h2>
+        <h2 className="text-lg font-bold text-gray-900">What's Working</h2>
+        <span className="ml-auto text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">{strengths.length}</span>
       </div>
-      <div className="relative rounded-2xl bg-gradient-to-br from-emerald-50 via-green-50/80 to-teal-50/60 border border-emerald-200/50 p-6 shadow-[0_4px_20px_-4px_rgba(16,185,129,0.15)] overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-200/30 to-transparent rounded-bl-full" />
-        <div className="relative grid gap-4">
+      <div className="bg-gradient-to-br from-emerald-50 to-green-50/50 border border-emerald-200/60 rounded-xl p-4">
+        <div className="space-y-2">
           {strengths.map((strength, idx) => (
             <div
               key={idx}
-              className="group flex items-start gap-4 bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/80 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_-4px_rgba(16,185,129,0.2)] hover:bg-white/90 transition-all duration-300"
+              className="flex items-start gap-3 bg-white/80 rounded-lg p-3 border border-green-100"
             >
-              <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 shadow-sm shadow-green-500/50" />
+              <div className="flex-shrink-0 w-1.5 h-1.5 mt-2 rounded-full bg-green-500" />
               <p className="text-sm text-gray-700 leading-relaxed">{strength}</p>
             </div>
           ))}
