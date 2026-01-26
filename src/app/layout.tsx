@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Laugh Lab",
@@ -12,7 +13,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="bg-gradient-to-br from-slate-50 via-white to-violet-50 min-h-screen">
+        {children}
+      </body>
     </html>
   );
 }
