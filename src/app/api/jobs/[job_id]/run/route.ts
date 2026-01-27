@@ -275,10 +275,10 @@ createErrorObject({
             job_id,
             run_id,
             request_id,
-            failures: evidenceLockResult.validation.failures.map(f => ({
+            failures: JSON.stringify(evidenceLockResult.validation.failures.map(f => ({
               reason: f.reason,
               details: f.details,
-            })),
+            }))),
           });
         }
 
