@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import ReportPage from '@/components/report/ReportPage';
 
 const steps = [
   { id: 'script', label: 'Submit Script', icon: '1' },
@@ -403,134 +404,19 @@ JERRY: So let me get this straight..."
 
           {/* Display Report */}
           {report && (
-            <div className="animate-slide-up">
-              {/* Report Header */}
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            <div className="animate-slide-up -mx-8 -mb-8">
+              <ReportPage data={report} scriptTitle="Analysis Report" />
+              <div className="px-8 pb-8 -mt-4">
+                <button
+                  onClick={handleReset}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Analysis Report</h2>
-                  <p className="text-gray-500">Comedy metrics and insights</p>
-                </div>
+                  Start Over
+                </button>
               </div>
-
-              {/* Score Card */}
-              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-500 via-indigo-600 to-purple-700 p-8 mb-6 shadow-xl">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
-                <div className="relative">
-                  <p className="text-violet-200 text-sm font-semibold uppercase tracking-wider mb-2">Overall Score</p>
-                  <div className="flex items-baseline gap-2 mb-4">
-                    <span className="text-7xl font-black text-white">
-                      {report.output?.prompt_a?.metrics?.overall_score || 'N/A'}
-                    </span>
-                    <span className="text-3xl font-medium text-violet-200">/100</span>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <span className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-full">
-                      <span className="w-2 h-2 bg-emerald-400 rounded-full" />
-                      LPM: {report.output?.prompt_a?.metrics?.lpm_intermediate_plus || 'N/A'}
-                    </span>
-                    <span className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white text-sm font-medium rounded-full">
-                      <span className="w-2 h-2 bg-amber-400 rounded-full" />
-                      Lines per joke: {report.output?.prompt_a?.metrics?.lines_per_joke || 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Strengths Section */}
-              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200/50 p-6 mb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center shadow-lg shadow-green-500/30">
-                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900">Strengths to Preserve</h3>
-                </div>
-                <div className="space-y-3">
-                  {report.output?.prompt_b?.sections?.strengths_to_preserve?.map((strength: string, i: number) => (
-                    <div key={i} className="flex items-start gap-3 bg-white/70 rounded-xl p-4 border border-emerald-100">
-                      <div className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold mt-0.5">
-                        {i + 1}
-                      </div>
-                      <p className="text-gray-700 leading-relaxed">{strength}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Issues Section */}
-              <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/50 p-6 mb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
-                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900">What's Getting in the Way</h3>
-                </div>
-                <div className="space-y-4">
-                  {report.output?.prompt_b?.sections?.whats_getting_in_the_way?.map((issue: any, i: number) => (
-                    <div key={i} className="bg-white/70 rounded-xl p-5 border border-amber-100">
-                      <div className="flex items-start gap-3 mb-3">
-                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center">
-                          {i + 1}
-                        </span>
-                        <p className="font-medium text-gray-900">{issue.why_it_matters}</p>
-                      </div>
-                      {issue.concrete_fix?.title && (
-                        <div className="ml-9 flex items-center gap-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-amber-600">Fix:</span>
-                          <span className="inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 text-sm font-medium rounded-full border border-emerald-200">
-                            {issue.concrete_fix.title}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* JSON Report Toggle */}
-              <details className="group mb-6">
-                <summary className="cursor-pointer list-none">
-                  <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                      </svg>
-                      <div>
-                        <p className="font-semibold text-gray-900">View Full JSON Report</p>
-                        <p className="text-sm text-gray-500">Debug payload from the analysis pipeline</p>
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-3 py-1.5 font-medium group-open:bg-gray-200 transition-colors">
-                      <span className="group-open:hidden">Show</span>
-                      <span className="hidden group-open:inline">Hide</span>
-                    </span>
-                  </div>
-                </summary>
-                <div className="mt-3 rounded-xl overflow-hidden">
-                  <pre className="bg-gray-900 text-gray-100 text-xs p-5 overflow-auto max-h-96">
-                    {JSON.stringify(report, null, 2)}
-                  </pre>
-                </div>
-              </details>
-
-              <button
-                onClick={handleReset}
-                className="btn-secondary"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Start Over
-              </button>
             </div>
           )}
         </div>
