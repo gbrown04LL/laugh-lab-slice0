@@ -236,6 +236,7 @@ createErrorObject({
 
     // Stage: Prompt A
     let promptA: PromptAOutput | undefined;
+    let evidenceLockSummary: string | undefined;
     try {
       // Real OpenAI call for Prompt A
       const rawPromptA = await callOpenAI(PROMPT_A_SYSTEM, scriptText);
@@ -250,7 +251,6 @@ createErrorObject({
       partial_prompt_a = promptA;
 
       // Evidence-Lock Pipeline (backend foundation, logged execution)
-      let evidenceLockSummary: string | undefined;
       try {
         logger.info("Running Evidence-Lock pipeline", { job_id, run_id, request_id });
         const evidenceLockResult = await runEvidenceLockPipeline(
