@@ -66,11 +66,12 @@ export default function ReportPage({ data, scriptTitle, isAnalyzing = false, sta
 
   // Use Evidence-Lock summary if available, otherwise generate from existing data
   const summary = useMemo(() => {
-    const evidenceLockSummary = output?.evidence_lock?.summary;
+    const evidenceLockSummary: string | undefined =
+      typeof output?.evidence_lock?.summary === 'string' ? output.evidence_lock.summary : undefined;
     
     if (evidenceLockSummary) {
       // Split Evidence-Lock summary into 3 paragraphs
-      const paragraphs = evidenceLockSummary.split('\n\n').filter(p => p.trim().length > 0);
+      const paragraphs = evidenceLockSummary.split('\n\n').filter((p) => p.trim().length > 0);
       return {
         praise: paragraphs[0] || '',
         constructive: paragraphs[1] || '',

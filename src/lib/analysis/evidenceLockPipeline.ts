@@ -111,7 +111,7 @@ export async function runEvidenceLockPipeline(
     if (!validationResult.valid) {
       logger.warn("Stage B validation failed (attempt 1)", {
         requestId,
-        failures: validationResult.failures,
+        failures: JSON.stringify(validationResult.failures),
       });
 
       // Retry once
@@ -136,7 +136,7 @@ export async function runEvidenceLockPipeline(
       if (!validationResult.valid) {
         logger.warn("Stage B validation failed (attempt 2), using fallback", {
           requestId,
-          failures: validationResult.failures,
+          failures: JSON.stringify(validationResult.failures),
         });
 
         // Use fallback
@@ -194,7 +194,7 @@ export async function runEvidenceLockPipeline(
   if (!validationResult.valid) {
     logger.error("Evidence-Lock validation failed even with fallback", {
       requestId,
-      failures: validationResult.failures,
+      failures: JSON.stringify(validationResult.failures),
     });
   }
 
