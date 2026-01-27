@@ -76,33 +76,37 @@ export default function ReportPage({ data, scriptTitle, isAnalyzing = false, sta
   }), [overallScore, lpm, strengths, opportunities, revisionSteps, retentionRisk]);
 
   // Build benchmarks for ScoreHero
+  type BenchmarkStatus = 'above' | 'on-target' | 'below';
   const benchmarks = useMemo(() => {
-    const items = [];
+    const items: Array<{ label: string; value: string; target: string; status: BenchmarkStatus }> = [];
 
     if (lpm > 0) {
+      const status: BenchmarkStatus = lpm >= 2.0 ? 'above' : lpm >= 1.5 ? 'on-target' : 'below';
       items.push({
         label: 'Laughs/Min',
         value: lpm.toFixed(1),
         target: '2.0+',
-        status: lpm >= 2.0 ? 'above' : lpm >= 1.5 ? 'on-target' : 'below' as const,
+        status,
       });
     }
 
     if (linesPerJoke > 0) {
+      const status: BenchmarkStatus = linesPerJoke <= 6 ? 'above' : linesPerJoke <= 10 ? 'on-target' : 'below';
       items.push({
         label: 'Lines/Joke',
         value: linesPerJoke.toFixed(1),
         target: '≤6',
-        status: linesPerJoke <= 6 ? 'above' : linesPerJoke <= 10 ? 'on-target' : 'below' as const,
+        status,
       });
     }
 
     if (ensembleBalance > 0) {
+      const status: BenchmarkStatus = ensembleBalance >= 0.8 ? 'above' : ensembleBalance >= 0.6 ? 'on-target' : 'below';
       items.push({
         label: 'Ensemble',
         value: `${Math.round(ensembleBalance * 100)}%`,
         target: '80%+',
-        status: ensembleBalance >= 0.8 ? 'above' : ensembleBalance >= 0.6 ? 'on-target' : 'below' as const,
+        status,
       });
     }
 
