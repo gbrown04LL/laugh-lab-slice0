@@ -250,6 +250,7 @@ createErrorObject({
       partial_prompt_a = promptA;
 
       // Evidence-Lock Pipeline (backend foundation, logged execution)
+      let evidenceLockSummary: string | undefined;
       try {
         logger.info("Running Evidence-Lock pipeline", { job_id, run_id, request_id });
         const evidenceLockResult = await runEvidenceLockPipeline(
@@ -281,8 +282,8 @@ createErrorObject({
           });
         }
 
-        // TODO: Store evidenceLockResult in database when schema is extended
-        // For now, this establishes the pipeline foundation without breaking existing contracts
+        // Store summary for persistence
+        evidenceLockSummary = evidenceLockResult.stageB.summary;
       } catch (evidenceLockError) {
         // Evidence-Lock is non-blocking; log error but continue main pipeline
         logger.error("Evidence-Lock pipeline failed (non-blocking)", {
@@ -442,6 +443,7 @@ createErrorObject({
       },
       prompt_a: promptA,
       prompt_b: promptB,
+      evidence_lock: evidenceLockSummary ? { summary: evidenceLockSummary } : undefined,
     };
 
     // Validate final output before persistence
