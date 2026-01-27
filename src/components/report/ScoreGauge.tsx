@@ -1,89 +1,154 @@
 'use client';
+
 import React from 'react';
 
-interface ScoreGaugeProps {
-  score: number;
-  percentile?: number;
+interface Benchmark {
+  label: string;
+  value: string;
+  target: string;
+  status: 'above' | 'on-target' | 'below';
 }
 
-export function ScoreGauge({ score, percentile = 75 }: ScoreGaugeProps) {
-  // Determine the color based on score
-  const getScoreColor = (s: number) => {
-    if (s >= 70) return { gradient: 'from-green-500 to-emerald-600', stroke: '#16a34a', bg: 'bg-green-500', label: 'Great!' };
-    if (s >= 50) return { gradient: 'from-amber-500 to-orange-600', stroke: '#f59e0b', bg: 'bg-amber-500', label: 'Good' };
-    return { gradient: 'from-red-500 to-rose-600', stroke: '#dc2626', bg: 'bg-red-500', label: 'Needs Work' };
-  };
+interface ScoreHeroProps {
+  score: number;
+  percentile?: number;
+  verdict?: string;
+  benchmarks?: Benchmark[];
+}
 
-  const colors = getScoreColor(score);
-
+export function ScoreHero({
+  score,
+  percentile = 73,
+  verdict = 'Strong comedy writing with room for targeted improvements.',
+  benchmarks = []
+}: ScoreHeroProps) {
   // SVG arc calculation for semi-circle gauge
-  const radius = 80;
-  const strokeWidth = 12;
-  const circumference = Math.PI * radius; // Half circle
+  const radius = 70;
+  const strokeWidth = 8;
+  const circumference = Math.PI * radius;
   const progress = (score / 100) * circumference;
   const dashOffset = circumference - progress;
 
+  // Determine score color
+  const getScoreColor = (s: number) => {
+    if (s >= 70) return '#059669'; // emerald-600
+    if (s >= 50) return '#d97706'; // amber-600
+    return '#dc2626'; // red-600
+  };
+
+  const strokeColor = getScoreColor(score);
+
   return (
-    <div className="flex flex-col items-center py-4">
-      <div className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Comedy Score</div>
-
-      {/* SVG Gauge */}
-      <div className="relative w-[200px] h-[110px]">
-        <svg
-          viewBox="0 0 200 110"
-          className="w-full h-full"
-        >
-          {/* Background arc */}
-          <path
-            d="M 10 100 A 80 80 0 0 1 190 100"
-            fill="none"
-            stroke="#e5e7eb"
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
-          {/* Progress arc */}
-          <path
-            d="M 10 100 A 80 80 0 0 1 190 100"
-            fill="none"
-            stroke={colors.stroke}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashOffset}
-            className="transition-all duration-1000 ease-out"
-          />
-          {/* Zone markers */}
-          <circle cx="10" cy="100" r="3" fill="#dc2626" />
-          <circle cx="58" cy="26" r="3" fill="#f59e0b" />
-          <circle cx="142" cy="26" r="3" fill="#16a34a" />
-          <circle cx="190" cy="100" r="3" fill="#16a34a" />
-        </svg>
-
-        {/* Score number overlay */}
-        <div className="absolute inset-0 flex items-end justify-center pb-0">
-          <div className="text-center">
-            <span className={`text-5xl font-black bg-gradient-to-br ${colors.gradient} bg-clip-text text-transparent`}>
-              {score}
-            </span>
-            <span className="text-xl font-medium text-gray-400">/100</span>
+    <section className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
+      <div className="flex flex-col md:flex-row md:items-start gap-6">
+        {/* Left: Gauge */}
+        <div className="flex flex-col items-center md:items-start">
+          <div className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+            Comedy Score
           </div>
+
+          {/* SVG Gauge */}
+          <div className="relative w-[160px] h-[90px]">
+            <svg viewBox="0 0 160 90" className="w-full h-full">
+              {/* Background arc */}
+              <path
+                d="M 10 80 A 70 70 0 0 1 150 80"
+                fill="none"
+                stroke="#e2e8f0"
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                className="dark:stroke-slate-700"
+              />
+              {/* Progress arc */}
+              <path
+                d="M 10 80 A 70 70 0 0 1 150 80"
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={dashOffset}
+                className="transition-all duration-1000 ease-out"
+              />
+            </svg>
+
+            {/* Score number overlay */}
+            <div className="absolute inset-0 flex items-end justify-center pb-1">
+              <div className="text-center">
+                <span className="text-4xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+                  {score}
+                </span>
+                <span className="text-lg font-medium text-slate-400 dark:text-slate-500">/100</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Percentile badge */}
+          <div className="mt-3 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200">
+            Better than {percentile}%
+          </div>
+
+          {/* Verdict */}
+          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 max-w-[200px] text-center md:text-left">
+            {verdict}
+          </p>
         </div>
-      </div>
 
-      {/* Status label */}
-      <div className={`mt-2 px-4 py-1.5 rounded-full text-sm font-bold text-white ${colors.bg}`}>
-        {colors.label}
+        {/* Right: Benchmarks table */}
+        {benchmarks.length > 0 && (
+          <div className="flex-1 md:border-l md:border-slate-200 md:pl-6 md:dark:border-slate-700">
+            <div className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+              Benchmarks
+            </div>
+            <div className="space-y-3">
+              {benchmarks.map((b, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">{b.label}</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400">Target: {b.target}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+                      {b.value}
+                    </span>
+                    <StatusBadge status={b.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Percentile badge */}
-      <div className="mt-4 text-center">
-        <span className="inline-flex items-center gap-2 bg-gradient-to-r from-slate-50 to-gray-100 text-gray-700 text-sm font-medium px-4 py-2 rounded-full border border-gray-200 shadow-sm">
-          <svg className="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-          </svg>
-          Better than {percentile}% of sitcom pilots
-        </span>
-      </div>
-    </div>
+    </section>
   );
+}
+
+function StatusBadge({ status }: { status: 'above' | 'on-target' | 'below' }) {
+  const config = {
+    above: {
+      label: 'Above',
+      classes: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-900/40',
+    },
+    'on-target': {
+      label: 'On target',
+      classes: 'text-slate-700 bg-slate-50 border-slate-200 dark:text-slate-200 dark:bg-slate-800/40 dark:border-slate-700',
+    },
+    below: {
+      label: 'Below',
+      classes: 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-300 dark:bg-rose-900/20 dark:border-rose-900/40',
+    },
+  };
+
+  const { label, classes } = config[status];
+
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${classes}`}>
+      {label}
+    </span>
+  );
+}
+
+// Keep old export for backwards compatibility during migration
+export function ScoreGauge(props: { score: number; percentile?: number }) {
+  return <ScoreHero {...props} benchmarks={[]} />;
 }
