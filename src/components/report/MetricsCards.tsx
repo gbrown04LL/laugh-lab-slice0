@@ -2,51 +2,58 @@
 
 import React from 'react';
 
-type MetricStatus = 'above' | 'on-target' | 'below';
+type MetricStatus = 'strong' | 'steady' | 'developing';
 
 interface MetricCardProps {
   label: string;
   value: string;
   suffix?: string;
   status: MetricStatus;
-  delta: string;
-  note: string;
+  description: string;
 }
 
-function MetricCard({ label, value, suffix, status, delta, note }: MetricCardProps) {
+function MetricCard({ label, value, suffix, status, description }: MetricCardProps) {
+  // Editorial plain-language status labels
   const statusConfig = {
-    above: {
-      label: 'Above avg',
-      classes: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-900/40',
+    strong: {
+      label: 'Strong',
+      classes: 'text-stone-700 bg-stone-100 dark:text-stone-200 dark:bg-stone-800/60',
     },
-    'on-target': {
-      label: 'On target',
-      classes: 'text-slate-700 bg-slate-50 border-slate-200 dark:text-slate-200 dark:bg-slate-800/40 dark:border-slate-700',
+    steady: {
+      label: 'Tight',
+      classes: 'text-stone-600 bg-stone-100 dark:text-stone-300 dark:bg-stone-800/40',
     },
-    below: {
-      label: 'Below avg',
-      classes: 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-300 dark:bg-rose-900/20 dark:border-rose-900/40',
+    developing: {
+      label: 'Slightly Uneven',
+      classes: 'text-stone-500 bg-stone-100 dark:text-stone-400 dark:bg-stone-800/40',
     },
   };
 
   const { label: statusLabel, classes: statusClasses } = statusConfig[status];
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
-      <div className="flex items-center justify-between">
-        <div className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</div>
-        <div className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClasses}`}>
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium uppercase tracking-widest text-stone-500 dark:text-stone-400">
+          {label}
+        </span>
+        <span className={`rounded px-2 py-0.5 text-xs font-medium ${statusClasses}`}>
           {statusLabel}
-        </div>
+        </span>
       </div>
 
-      <div className="mt-3 flex items-end gap-2">
-        <div className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">{value}</div>
-        {suffix && <div className="pb-1 text-sm text-slate-500 dark:text-slate-400">{suffix}</div>}
+      <div className="flex items-baseline gap-1 mb-1">
+        <span className="text-2xl font-light tracking-tight text-stone-800 dark:text-stone-100">
+          {value}
+        </span>
+        {suffix && (
+          <span className="text-sm text-stone-400 dark:text-stone-500">{suffix}</span>
+        )}
       </div>
 
-      <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">{delta}</div>
-      <div className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">{note}</div>
+      <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
+        {description}
+      </p>
     </div>
   );
 }
@@ -58,41 +65,35 @@ interface MetricsCardsProps {
 }
 
 export function MetricsCards({ lpm, linesPerJoke, ensembleBalance }: MetricsCardsProps) {
-  // Calculate status and delta for each metric
-  const lpmStatus: MetricStatus = lpm >= 2.0 ? 'above' : lpm >= 1.5 ? 'on-target' : 'below';
-  const lpmDelta = lpm >= 2.0 ? `+${(lpm - 2.0).toFixed(1)} vs sitcom avg 2.0` : `${(lpm - 2.0).toFixed(1)} vs sitcom avg 2.0`;
-
-  const lpjStatus: MetricStatus = linesPerJoke <= 6 ? 'above' : linesPerJoke <= 10 ? 'on-target' : 'below';
-  const lpjDelta = linesPerJoke <= 6 ? `${(6 - linesPerJoke).toFixed(1)} better than 6.0 target` : `+${(linesPerJoke - 6).toFixed(1)} vs target 6.0`;
-
+  // Calculate status for each metric using plain language
+  const lpmStatus: MetricStatus = lpm >= 2.0 ? 'strong' : lpm >= 1.5 ? 'steady' : 'developing';
+  const lpjStatus: MetricStatus = linesPerJoke <= 6 ? 'strong' : linesPerJoke <= 10 ? 'steady' : 'developing';
   const balancePercent = Math.round(ensembleBalance * 100);
-  const balanceStatus: MetricStatus = ensembleBalance >= 0.8 ? 'above' : ensembleBalance >= 0.6 ? 'on-target' : 'below';
-  const balanceDelta = ensembleBalance >= 0.8 ? `+${balancePercent - 80}% vs 80% target` : `${balancePercent - 80}% vs 80% target`;
+  const balanceStatus: MetricStatus = ensembleBalance >= 0.8 ? 'strong' : ensembleBalance >= 0.6 ? 'steady' : 'developing';
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <MetricCard
-        label="Laughs Per Minute"
-        value={lpm.toFixed(1)}
-        status={lpmStatus}
-        delta={lpmDelta}
-        note="Measures joke frequency. Higher = more consistent laughs throughout the script."
-      />
-      <MetricCard
-        label="Lines Per Joke"
-        value={linesPerJoke.toFixed(1)}
-        status={lpjStatus}
-        delta={lpjDelta}
-        note="Average lines between jokes. Lower = tighter pacing and better comedy density."
-      />
-      <MetricCard
-        label="Ensemble Balance"
-        value={`${balancePercent}`}
-        suffix="%"
-        status={balanceStatus}
-        delta={balanceDelta}
-        note="How evenly comedy is distributed across characters. 80%+ indicates strong ensemble writing."
-      />
+    <div className="rounded-2xl border border-stone-200 bg-stone-50/80 p-6 dark:border-stone-800 dark:bg-stone-900/40">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6">
+        <MetricCard
+          label="Laughs per Minute"
+          value={lpm.toFixed(1)}
+          status={lpmStatus}
+          description="Consistency of laughs throughout"
+        />
+        <MetricCard
+          label="Lines per Joke"
+          value={linesPerJoke.toFixed(1)}
+          status={lpjStatus}
+          description="Comedy density and pacing"
+        />
+        <MetricCard
+          label="Ensemble Balance"
+          value={`${balancePercent}`}
+          suffix="%"
+          status={balanceStatus}
+          description="Distribution of comic weight"
+        />
+      </div>
     </div>
   );
 }

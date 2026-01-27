@@ -8,15 +8,16 @@ interface EvidenceChipProps {
 }
 
 export function EvidenceChip({ text, variant = 'default' }: EvidenceChipProps) {
+  // Muted editorial color palette - stone-based for consistency
   const variantClasses = {
-    default: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200',
-    scene: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-900/20 dark:text-indigo-300',
-    line: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/40 dark:bg-violet-900/20 dark:text-violet-300',
-    tag: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300',
+    default: 'border-stone-200 bg-stone-100 text-stone-600 dark:border-stone-700 dark:bg-stone-800/40 dark:text-stone-300',
+    scene: 'border-stone-200 bg-stone-100 text-stone-600 dark:border-stone-700 dark:bg-stone-800/40 dark:text-stone-300',
+    line: 'border-stone-200 bg-stone-100 text-stone-600 dark:border-stone-700 dark:bg-stone-800/40 dark:text-stone-300',
+    tag: 'border-stone-200 bg-stone-100 text-stone-500 dark:border-stone-700 dark:bg-stone-800/40 dark:text-stone-400',
   };
 
   return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${variantClasses[variant]}`}>
+    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${variantClasses[variant]}`}>
       {text}
     </span>
   );

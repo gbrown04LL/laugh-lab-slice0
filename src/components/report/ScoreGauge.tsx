@@ -11,14 +11,21 @@ interface Benchmark {
 
 interface ScoreHeroProps {
   score: number;
-  percentile?: number;
   verdict?: string;
   benchmarks?: Benchmark[];
 }
 
+// Generate industry-comparable subtext based on score
+function getIndustryContext(score: number): string {
+  if (score >= 85) return 'Comparable to top-tier produced comedy';
+  if (score >= 75) return 'Comparable to produced half-hour sitcoms';
+  if (score >= 65) return 'Solid draft with clear comedic voice';
+  if (score >= 50) return 'Promising foundation for development';
+  return 'Early-stage material with potential';
+}
+
 export function ScoreHero({
   score,
-  percentile = 73,
   verdict = 'Strong comedy writing with room for targeted improvements.',
   benchmarks = []
 }: ScoreHeroProps) {
@@ -29,22 +36,23 @@ export function ScoreHero({
   const progress = (score / 100) * circumference;
   const dashOffset = circumference - progress;
 
-  // Determine score color
+  // Muted editorial color palette
   const getScoreColor = (s: number) => {
-    if (s >= 70) return '#059669'; // emerald-600
-    if (s >= 50) return '#d97706'; // amber-600
-    return '#dc2626'; // red-600
+    if (s >= 70) return '#4b5563'; // gray-600 (muted success)
+    if (s >= 50) return '#6b7280'; // gray-500 (neutral)
+    return '#9ca3af'; // gray-400 (needs attention)
   };
 
   const strokeColor = getScoreColor(score);
+  const industryContext = getIndustryContext(score);
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
-      <div className="flex flex-col md:flex-row md:items-start gap-6">
+    <section className="rounded-2xl border border-stone-200 bg-stone-50/80 p-8 dark:border-stone-800 dark:bg-stone-900/40">
+      <div className="flex flex-col md:flex-row md:items-start gap-8">
         {/* Left: Gauge */}
         <div className="flex flex-col items-center md:items-start">
-          <div className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-            Comedy Score
+          <div className="text-xs font-medium uppercase tracking-widest text-stone-500 dark:text-stone-400 mb-4">
+            Comedy Effectiveness
           </div>
 
           {/* SVG Gauge */}
@@ -54,10 +62,10 @@ export function ScoreHero({
               <path
                 d="M 10 80 A 70 70 0 0 1 150 80"
                 fill="none"
-                stroke="#e2e8f0"
+                stroke="#d6d3d1"
                 strokeWidth={strokeWidth}
                 strokeLinecap="round"
-                className="dark:stroke-slate-700"
+                className="dark:stroke-stone-700"
               />
               {/* Progress arc */}
               <path
@@ -75,43 +83,38 @@ export function ScoreHero({
             {/* Score number overlay */}
             <div className="absolute inset-0 flex items-end justify-center pb-1">
               <div className="text-center">
-                <span className="text-4xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+                <span className="text-4xl font-light tracking-tight text-stone-800 dark:text-stone-100">
                   {score}
                 </span>
-                <span className="text-lg font-medium text-slate-400 dark:text-slate-500">/100</span>
+                <span className="text-lg font-light text-stone-400 dark:text-stone-500">/100</span>
               </div>
             </div>
           </div>
 
-          {/* Percentile badge */}
-          <div className="mt-3 inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200">
-            Better than {percentile}%
-          </div>
-
-          {/* Verdict */}
-          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300 max-w-[200px] text-center md:text-left">
-            {verdict}
+          {/* Industry context subtext - replaces percentile */}
+          <p className="mt-4 text-sm text-stone-600 dark:text-stone-300 max-w-[220px] text-center md:text-left leading-relaxed">
+            {industryContext}
           </p>
         </div>
 
         {/* Right: Benchmarks table */}
         {benchmarks.length > 0 && (
-          <div className="flex-1 md:border-l md:border-slate-200 md:pl-6 md:dark:border-slate-700">
-            <div className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
-              Benchmarks
+          <div className="flex-1 md:border-l md:border-stone-200 md:pl-8 md:dark:border-stone-700">
+            <div className="text-xs font-medium uppercase tracking-widest text-stone-500 dark:text-stone-400 mb-4">
+              Key Metrics
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {benchmarks.map((b, idx) => (
                 <div key={idx} className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-slate-900 dark:text-slate-50">{b.label}</div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400">Target: {b.target}</div>
+                    <div className="text-sm font-medium text-stone-800 dark:text-stone-100">{b.label}</div>
+                    <div className="text-xs text-stone-500 dark:text-stone-400">Target: {b.target}</div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg font-light tracking-tight text-stone-800 dark:text-stone-100">
                       {b.value}
                     </span>
-                    <StatusBadge status={b.status} />
+                    <StatusLabel status={b.status} />
                   </div>
                 </div>
               ))}
@@ -123,32 +126,33 @@ export function ScoreHero({
   );
 }
 
-function StatusBadge({ status }: { status: 'above' | 'on-target' | 'below' }) {
+function StatusLabel({ status }: { status: 'above' | 'on-target' | 'below' }) {
+  // Plain language status labels with muted editorial colors
   const config = {
     above: {
-      label: 'Above',
-      classes: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-900/40',
+      label: 'Strong',
+      classes: 'text-stone-700 bg-stone-100 dark:text-stone-200 dark:bg-stone-800/60',
     },
     'on-target': {
-      label: 'On target',
-      classes: 'text-slate-700 bg-slate-50 border-slate-200 dark:text-slate-200 dark:bg-slate-800/40 dark:border-slate-700',
+      label: 'Steady',
+      classes: 'text-stone-600 bg-stone-100 dark:text-stone-300 dark:bg-stone-800/40',
     },
     below: {
-      label: 'Below',
-      classes: 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-300 dark:bg-rose-900/20 dark:border-rose-900/40',
+      label: 'Developing',
+      classes: 'text-stone-500 bg-stone-100 dark:text-stone-400 dark:bg-stone-800/40',
     },
   };
 
   const { label, classes } = config[status];
 
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium ${classes}`}>
+    <span className={`rounded px-2.5 py-1 text-xs font-medium ${classes}`}>
       {label}
     </span>
   );
 }
 
 // Keep old export for backwards compatibility during migration
-export function ScoreGauge(props: { score: number; percentile?: number }) {
+export function ScoreGauge(props: { score: number }) {
   return <ScoreHero {...props} benchmarks={[]} />;
 }

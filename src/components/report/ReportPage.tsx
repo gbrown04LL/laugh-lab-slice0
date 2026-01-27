@@ -131,122 +131,95 @@ export default function ReportPage({ data, scriptTitle, isAnalyzing = false, sta
         : 'Several areas need attention.';
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
+    <main className="min-h-screen bg-stone-100 dark:bg-stone-950">
       <AnalysisProgress isAnalyzing={isAnalyzing} stage={stage} />
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl border border-indigo-200 bg-indigo-50 flex items-center justify-center dark:border-indigo-900/40 dark:bg-indigo-900/20">
-              <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-                {scriptTitle || 'Analysis Report'}
-              </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Comedy script analysis</p>
-            </div>
-          </div>
-        </div>
+      <div className="max-w-4xl mx-auto px-6 py-10">
+        {/* Header - editorial style */}
+        <header className="mb-10">
+          <h1 className="text-2xl font-light tracking-tight text-stone-800 dark:text-stone-100">
+            {scriptTitle || 'Script Analysis'}
+          </h1>
+          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
+            Professional comedy coverage
+          </p>
+        </header>
 
-        {/* Coverage Summary - 3 paragraphs at top */}
-        <div className="mb-6">
-          <CoverageSummary summary={summary} />
-        </div>
-
-        {/* Score Hero with Benchmarks */}
-        <div className="mb-6">
+        {/* SECTION 1: Dashboard - Score + Core Metrics */}
+        <div className="mb-8">
           <ScoreHero
             score={overallScore}
-            percentile={73}
             verdict={verdict}
             benchmarks={benchmarks}
           />
         </div>
 
-        {/* Metrics Cards */}
-        <div className="mb-8">
+        <div className="mb-12">
           <MetricsCards lpm={lpm} linesPerJoke={linesPerJoke} ensembleBalance={ensembleBalance} />
         </div>
 
-        {/* Two-column layout for Strengths and Opportunities */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <StrengthsSection strengths={strengths} peakMoments={peakMoments} />
-          <OpportunitiesSection opportunities={opportunities} />
+        {/* SECTION 2: Coach's Notes - 3-paragraph breakdown */}
+        <div className="mb-14">
+          <CoverageSummary summary={summary} />
         </div>
 
-        {/* Character Balance */}
-        {characters.length > 0 && (
-          <div className="mb-8">
+        {/* SECTION 3: Supporting Analysis */}
+        <div className="space-y-10">
+          {/* Two-column layout for Strengths and Opportunities */}
+          <div className="grid md:grid-cols-2 gap-8">
+            <StrengthsSection strengths={strengths} peakMoments={peakMoments} />
+            <OpportunitiesSection opportunities={opportunities} />
+          </div>
+
+          {/* Character Balance */}
+          {characters.length > 0 && (
             <CharacterBalanceChart characters={characters} />
-          </div>
-        )}
+          )}
 
-        {/* Punch-Up Workshop */}
-        {punchUps.length > 0 && (
-          <div className="mb-8">
+          {/* Punch-Up Workshop */}
+          {punchUps.length > 0 && (
             <PunchUpWorkshop moments={punchUps} />
-          </div>
-        )}
+          )}
 
-        {/* Priority Fix Plan */}
-        {revisionSteps.length > 0 && (
-          <div className="mb-8">
+          {/* Suggested Rewrite Path */}
+          {revisionSteps.length > 0 && (
             <PriorityFixPlan steps={revisionSteps} />
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Actions */}
-        <section className="mb-8">
-          <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-3">Next Steps</h3>
-            <div className="flex flex-wrap gap-3">
-              <a
-                href="/"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Analyze Another Script
-              </a>
-              <button
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-                Print Report
-              </button>
-              <button
-                onClick={() => setShowRaw(!showRaw)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-                {showRaw ? 'Hide' : 'View'} JSON
-              </button>
-            </div>
+        {/* Actions - minimal, editorial */}
+        <div className="mt-12 pt-8 border-t border-stone-200 dark:border-stone-800">
+          <div className="flex flex-wrap items-center gap-4">
+            <a
+              href="/"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-stone-800 text-stone-100 text-sm font-medium rounded-lg hover:bg-stone-700 transition-colors dark:bg-stone-200 dark:text-stone-900 dark:hover:bg-stone-300"
+            >
+              Analyze Another Script
+            </a>
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 px-4 py-2 text-stone-600 text-sm font-medium rounded-lg border border-stone-300 hover:bg-stone-50 transition-colors dark:text-stone-300 dark:border-stone-700 dark:hover:bg-stone-800"
+            >
+              Print
+            </button>
+            <button
+              onClick={() => setShowRaw(!showRaw)}
+              className="text-sm text-stone-500 hover:text-stone-700 transition-colors dark:text-stone-400 dark:hover:text-stone-200"
+            >
+              {showRaw ? 'Hide JSON' : 'View JSON'}
+            </button>
           </div>
-        </section>
+        </div>
 
         {/* Raw JSON (collapsible) */}
         {showRaw && (
-          <section className="mb-8">
-            <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur overflow-hidden shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
-              <div className="p-3 border-b border-slate-200 dark:border-slate-700">
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Raw JSON Response</p>
-              </div>
-              <pre className="bg-slate-900 text-slate-100 text-xs p-4 overflow-auto max-h-80">
+          <div className="mt-6">
+            <div className="rounded-lg border border-stone-200 overflow-hidden dark:border-stone-800">
+              <pre className="bg-stone-900 text-stone-300 text-xs p-4 overflow-auto max-h-80">
                 {rawJson || 'No data'}
               </pre>
             </div>
-          </section>
+          </div>
         )}
       </div>
     </main>
