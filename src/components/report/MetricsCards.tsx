@@ -1,5 +1,55 @@
 'use client';
+
 import React from 'react';
+
+type MetricStatus = 'above' | 'on-target' | 'below';
+
+interface MetricCardProps {
+  label: string;
+  value: string;
+  suffix?: string;
+  status: MetricStatus;
+  delta: string;
+  note: string;
+}
+
+function MetricCard({ label, value, suffix, status, delta, note }: MetricCardProps) {
+  const statusConfig = {
+    above: {
+      label: 'Above avg',
+      classes: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-900/20 dark:border-emerald-900/40',
+    },
+    'on-target': {
+      label: 'On target',
+      classes: 'text-slate-700 bg-slate-50 border-slate-200 dark:text-slate-200 dark:bg-slate-800/40 dark:border-slate-700',
+    },
+    below: {
+      label: 'Below avg',
+      classes: 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-300 dark:bg-rose-900/20 dark:border-rose-900/40',
+    },
+  };
+
+  const { label: statusLabel, classes: statusClasses } = statusConfig[status];
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</div>
+        <div className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClasses}`}>
+          {statusLabel}
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-end gap-2">
+        <div className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">{value}</div>
+        {suffix && <div className="pb-1 text-sm text-slate-500 dark:text-slate-400">{suffix}</div>}
+      </div>
+
+      <div className="mt-2 text-sm text-slate-600 dark:text-slate-300">{delta}</div>
+      <div className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">{note}</div>
+    </div>
+  );
+}
 
 interface MetricsCardsProps {
   lpm: number;
@@ -8,96 +58,41 @@ interface MetricsCardsProps {
 }
 
 export function MetricsCards({ lpm, linesPerJoke, ensembleBalance }: MetricsCardsProps) {
-  // Determine status labels and colors
-  const lpmStatus = lpm >= 2.0 ? { label: 'Above Average', color: 'text-green-600', bg: 'bg-green-500', progress: 100 }
-                  : lpm >= 1.5 ? { label: 'On Target', color: 'text-amber-600', bg: 'bg-amber-500', progress: 75 }
-                  : { label: 'Below Average', color: 'text-red-600', bg: 'bg-red-500', progress: 40 };
+  // Calculate status and delta for each metric
+  const lpmStatus: MetricStatus = lpm >= 2.0 ? 'above' : lpm >= 1.5 ? 'on-target' : 'below';
+  const lpmDelta = lpm >= 2.0 ? `+${(lpm - 2.0).toFixed(1)} vs sitcom avg 2.0` : `${(lpm - 2.0).toFixed(1)} vs sitcom avg 2.0`;
 
-  const lpjStatus = linesPerJoke <= 6 ? { label: 'Tight pacing', color: 'text-green-600', bg: 'bg-green-500', progress: 100 }
-                  : linesPerJoke <= 10 ? { label: 'Could be snappier', color: 'text-amber-600', bg: 'bg-amber-500', progress: 60 }
-                  : { label: 'Needs more jokes', color: 'text-red-600', bg: 'bg-red-500', progress: 30 };
+  const lpjStatus: MetricStatus = linesPerJoke <= 6 ? 'above' : linesPerJoke <= 10 ? 'on-target' : 'below';
+  const lpjDelta = linesPerJoke <= 6 ? `${(6 - linesPerJoke).toFixed(1)} better than 6.0 target` : `+${(linesPerJoke - 6).toFixed(1)} vs target 6.0`;
 
-  const balanceStatus = ensembleBalance >= 0.8 ? { label: 'Well balanced', color: 'text-green-600', bg: 'bg-green-500', progress: 100 }
-                      : ensembleBalance >= 0.6 ? { label: 'Slightly uneven', color: 'text-amber-600', bg: 'bg-amber-500', progress: 75 }
-                      : { label: 'Needs balance', color: 'text-red-600', bg: 'bg-red-500', progress: 40 };
-
-  const metrics = [
-    {
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-      label: 'Laughs Per Minute',
-      value: lpm.toFixed(1),
-      target: '2.0+ ideal',
-      status: lpmStatus,
-      iconBg: 'from-blue-400 to-blue-600',
-    },
-    {
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-      ),
-      label: 'Lines Per Joke',
-      value: linesPerJoke.toFixed(1),
-      target: '6 or fewer ideal',
-      status: lpjStatus,
-      iconBg: 'from-purple-400 to-purple-600',
-    },
-    {
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
-      label: 'Ensemble Balance',
-      value: `${Math.round(ensembleBalance * 100)}%`,
-      target: '80%+ ideal',
-      status: balanceStatus,
-      iconBg: 'from-green-400 to-green-600',
-      isPercentage: true,
-      percentValue: Math.round(ensembleBalance * 100),
-    },
-  ];
+  const balancePercent = Math.round(ensembleBalance * 100);
+  const balanceStatus: MetricStatus = ensembleBalance >= 0.8 ? 'above' : ensembleBalance >= 0.6 ? 'on-target' : 'below';
+  const balanceDelta = ensembleBalance >= 0.8 ? `+${balancePercent - 80}% vs 80% target` : `${balancePercent - 80}% vs 80% target`;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      {metrics.map((metric, idx) => (
-        <div key={idx} className="group relative bg-white border border-gray-200/80 rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300">
-          <div className="flex items-start gap-3">
-            {/* Icon */}
-            <div className={`flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br ${metric.iconBg} flex items-center justify-center text-white shadow-sm`}>
-              {metric.icon}
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">{metric.label}</div>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-2xl font-bold text-gray-900">{metric.value}</span>
-                <span className="text-xs text-gray-400">{metric.target}</span>
-              </div>
-
-              {/* Progress bar */}
-              <div className="mt-2">
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${metric.status.bg} rounded-full transition-all duration-500`}
-                    style={{ width: `${metric.isPercentage ? metric.percentValue : metric.status.progress}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* Status label */}
-              <div className={`text-xs font-semibold mt-1.5 ${metric.status.color}`}>
-                {metric.status.label}
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
+      <MetricCard
+        label="Laughs Per Minute"
+        value={lpm.toFixed(1)}
+        status={lpmStatus}
+        delta={lpmDelta}
+        note="Measures joke frequency. Higher = more consistent laughs throughout the script."
+      />
+      <MetricCard
+        label="Lines Per Joke"
+        value={linesPerJoke.toFixed(1)}
+        status={lpjStatus}
+        delta={lpjDelta}
+        note="Average lines between jokes. Lower = tighter pacing and better comedy density."
+      />
+      <MetricCard
+        label="Ensemble Balance"
+        value={`${balancePercent}`}
+        suffix="%"
+        status={balanceStatus}
+        delta={balanceDelta}
+        note="How evenly comedy is distributed across characters. 80%+ indicates strong ensemble writing."
+      />
     </div>
   );
 }
