@@ -268,6 +268,9 @@ export const FinalOutputSchema = z.object({
   run: RunMetadataSchema,
   prompt_a: PromptAOutputSchema.optional(),
   prompt_b: PromptBOutputSchema.optional(),
+  evidence_lock: z.object({
+    summary: z.string(),
+  }).optional(),
   errors: z.array(ErrorObjectSchema).optional(),
   warnings: z.array(z.string()).optional(),
 });

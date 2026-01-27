@@ -65,15 +65,30 @@ export default function ReportPage({ data, scriptTitle, isAnalyzing = false, sta
 
   const revisionSteps: RevisionStep[] = output?.prompt_b?.sections?.how_to_revise_this_efficiently?.revision_plan?.steps ?? [];
 
-  // Generate summary from existing data
-  const summary = useMemo(() => generateSummaryFromData({
-    score: overallScore,
-    lpm,
-    strengths,
-    issues: opportunities,
-    revisionSteps,
-    retentionRisk,
-  }), [overallScore, lpm, strengths, opportunities, revisionSteps, retentionRisk]);
+  // Use Evidence-Lock summary if available, otherwise generate from existing data
+  const summary = useMemo(() => {
+    const evidenceLockSummary = output?.evidence_lock?.summary;
+    
+    if (evidenceLockSummary) {
+      // Split Evidence-Lock summary into 3 paragraphs
+      const paragraphs = evidenceLockSummary.split('\n\n').filter(p => p.trim().length > 0);
+      return {
+        praise: paragraphs[0] || '',
+        constructive: paragraphs[1] || '',
+        nextSteps: paragraphs[2] || '',
+      };
+    }
+    
+    // Fallback to legacy summary generation
+    return generateSummaryFromData({
+      score: overallScore,
+      lpm,
+      strengths,
+      issues: opportunities,
+      revisionSteps,
+      retentionRisk,
+    });
+  }, [output, overallScore, lpm, strengths, opportunities, revisionSteps, retentionRisk]);
 
   // Build benchmarks for ScoreHero
   type BenchmarkStatus = 'above' | 'on-target' | 'below';
