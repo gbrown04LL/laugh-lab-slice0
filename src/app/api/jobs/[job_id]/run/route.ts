@@ -20,6 +20,7 @@ import { callOpenAI } from "@/lib/openai";
 import { createErrorObject, errorResponse, generateRequestId } from "@/lib/api-errors";
 import logger from "@/lib/logger";
 import { computeScriptFingerprint } from "@/lib/fingerprint";
+import { runEvidenceLockPipeline } from "@/lib/analysis/evidenceLockPipeline";
 
 // Required for Prisma on Vercel serverless
 export const runtime = "nodejs";
@@ -247,6 +248,50 @@ createErrorObject({
       
       promptA = validationA.data;
       partial_prompt_a = promptA;
+
+      // Evidence-Lock Pipeline (backend foundation, logged execution)
+      try {
+        logger.info("Running Evidence-Lock pipeline", { job_id, run_id, request_id });
+        const evidenceLockResult = await runEvidenceLockPipeline(
+          scriptText,
+          promptA,
+          request_id
+        );
+        
+        logger.info("Evidence-Lock pipeline completed", {
+          job_id,
+          run_id,
+          request_id,
+          receiptCount: evidenceLockResult.stageA.receipts.length,
+          summaryValid: evidenceLockResult.validation.valid,
+          retryCount: evidenceLockResult.retryCount,
+          usedFallback: evidenceLockResult.usedFallback,
+        });
+
+        // Log validation failures for monitoring
+        if (!evidenceLockResult.validation.valid) {
+          logger.warn("Evidence-Lock validation failures", {
+            job_id,
+            run_id,
+            request_id,
+            failures: evidenceLockResult.validation.failures.map(f => ({
+              reason: f.reason,
+              details: f.details,
+            })),
+          });
+        }
+
+        // TODO: Store evidenceLockResult in database when schema is extended
+        // For now, this establishes the pipeline foundation without breaking existing contracts
+      } catch (evidenceLockError) {
+        // Evidence-Lock is non-blocking; log error but continue main pipeline
+        logger.error("Evidence-Lock pipeline failed (non-blocking)", {
+          job_id,
+          run_id,
+          request_id,
+          error: evidenceLockError instanceof Error ? evidenceLockError.message : String(evidenceLockError),
+        });
+      }
     } catch (err) {
       console.error("=== PROMPT A FAILED ===");
       console.error("Error:", err);
