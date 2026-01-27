@@ -10,7 +10,6 @@ import { OpportunitiesSection, OpportunityItem } from './OpportunitiesSection';
 import { PunchUpWorkshop, PunchUpMoment } from './PunchUpWorkshop';
 import { CharacterBalanceChart, CharacterBalanceItem } from './CharacterBalanceChart';
 import { PriorityFixPlan, RevisionStep } from './PriorityFixPlan';
-import { AnalysisProgress } from './AnalysisProgress';
 
 interface ReportPageProps {
   data?: any;
@@ -146,124 +145,165 @@ export default function ReportPage({ data, scriptTitle, isAnalyzing = false, sta
         : 'Several areas need attention.';
 
   return (
-    <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <AnalysisProgress isAnalyzing={isAnalyzing} stage={stage} />
-
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl border border-indigo-200 bg-indigo-50 flex items-center justify-center dark:border-indigo-900/40 dark:bg-indigo-900/20">
-              <svg className="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
+    <main className="min-h-screen bg-zinc-950">
+      {/* Editorial Header */}
+      <header className="border-b border-zinc-800 bg-zinc-950">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-                {scriptTitle || 'Analysis Report'}
+              <h1 className="text-2xl font-light tracking-tight text-zinc-100 mb-1">
+                {scriptTitle || 'Untitled Script'}
               </h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Comedy script analysis</p>
+              <p className="text-sm text-zinc-500">Script Coverage Report</p>
             </div>
-          </div>
-        </div>
-
-        {/* Coverage Summary - 3 paragraphs at top */}
-        <div className="mb-6">
-          <CoverageSummary summary={summary} />
-        </div>
-
-        {/* Score Hero with Benchmarks */}
-        <div className="mb-6">
-          <ScoreHero
-            score={overallScore}
-            percentile={73}
-            verdict={verdict}
-            benchmarks={benchmarks}
-          />
-        </div>
-
-        {/* Metrics Cards */}
-        <div className="mb-8">
-          <MetricsCards lpm={lpm} linesPerJoke={linesPerJoke} ensembleBalance={ensembleBalance} />
-        </div>
-
-        {/* Two-column layout for Strengths and Opportunities */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <StrengthsSection strengths={strengths} peakMoments={peakMoments} />
-          <OpportunitiesSection opportunities={opportunities} />
-        </div>
-
-        {/* Character Balance */}
-        {characters.length > 0 && (
-          <div className="mb-8">
-            <CharacterBalanceChart characters={characters} />
-          </div>
-        )}
-
-        {/* Punch-Up Workshop */}
-        {punchUps.length > 0 && (
-          <div className="mb-8">
-            <PunchUpWorkshop moments={punchUps} />
-          </div>
-        )}
-
-        {/* Priority Fix Plan */}
-        {revisionSteps.length > 0 && (
-          <div className="mb-8">
-            <PriorityFixPlan steps={revisionSteps} />
-          </div>
-        )}
-
-        {/* Actions */}
-        <section className="mb-8">
-          <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 mb-3">Next Steps</h3>
-            <div className="flex flex-wrap gap-3">
-              <a
-                href="/"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Analyze Another Script
-              </a>
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => window.print()}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700"
+                className="text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-                Print Report
+                Print
               </button>
               <button
                 onClick={() => setShowRaw(!showRaw)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-700 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700"
+                className="text-sm text-zinc-400 hover:text-zinc-300 transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                </svg>
-                {showRaw ? 'Hide' : 'View'} JSON
+                {showRaw ? 'Hide' : 'View'} Data
               </button>
+              <a
+                href="/"
+                className="px-4 py-2 bg-zinc-800 text-zinc-300 text-sm font-medium rounded hover:bg-zinc-700 transition-colors"
+              >
+                New Analysis
+              </a>
             </div>
           </div>
-        </section>
+        </div>
+      </header>
 
-        {/* Raw JSON (collapsible) */}
-        {showRaw && (
-          <section className="mb-8">
-            <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur overflow-hidden shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
-              <div className="p-3 border-b border-slate-200 dark:border-slate-700">
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Raw JSON Response</p>
+      {/* Main Content: Sidebar + Content */}
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-12">
+          {/* Left Sidebar: Metrics */}
+          <aside className="space-y-6">
+            <div>
+              <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-4">Metrics</h2>
+              <div className="space-y-4">
+                {/* Score */}
+                <div className="pb-4 border-b border-zinc-800">
+                  <div className="text-xs text-zinc-500 mb-1">Comedy Score</div>
+                  <div className="text-3xl font-light text-zinc-100">{overallScore}</div>
+                  <div className="text-xs text-zinc-600 mt-1">out of 100</div>
+                </div>
+
+                {/* LPM */}
+                {lpm > 0 && (
+                  <div className="pb-4 border-b border-zinc-800">
+                    <div className="text-xs text-zinc-500 mb-1">Laughs Per Minute</div>
+                    <div className="text-2xl font-light text-zinc-100">{lpm.toFixed(1)}</div>
+                    <div className="text-xs text-zinc-600 mt-1">target: 2.0+</div>
+                  </div>
+                )}
+
+                {/* Lines Per Joke */}
+                {linesPerJoke > 0 && (
+                  <div className="pb-4 border-b border-zinc-800">
+                    <div className="text-xs text-zinc-500 mb-1">Lines Per Joke</div>
+                    <div className="text-2xl font-light text-zinc-100">{linesPerJoke.toFixed(1)}</div>
+                    <div className="text-xs text-zinc-600 mt-1">target: ≤6</div>
+                  </div>
+                )}
+
+                {/* Ensemble Balance */}
+                {ensembleBalance > 0 && (
+                  <div className="pb-4 border-b border-zinc-800">
+                    <div className="text-xs text-zinc-500 mb-1">Ensemble Balance</div>
+                    <div className="text-2xl font-light text-zinc-100">{Math.round(ensembleBalance * 100)}%</div>
+                    <div className="text-xs text-zinc-600 mt-1">target: 80%+</div>
+                  </div>
+                )}
               </div>
-              <pre className="bg-slate-900 text-slate-100 text-xs p-4 overflow-auto max-h-80">
-                {rawJson || 'No data'}
-              </pre>
             </div>
-          </section>
-        )}
+          </aside>
+
+          {/* Main Content */}
+          <div className="space-y-12">
+            {/* Coverage Summary - Hero Section */}
+            <section>
+              <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Executive Summary</h2>
+              <div className="space-y-6 text-base leading-relaxed text-zinc-300">
+                <p>{summary.praise}</p>
+                <p>{summary.constructive}</p>
+                <p>{summary.nextSteps}</p>
+              </div>
+            </section>
+
+            {/* Divider */}
+            <div className="border-t border-zinc-800"></div>
+
+            {/* Strengths and Opportunities */}
+            <section>
+              <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Analysis</h2>
+              <div className="grid md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="text-sm font-medium text-zinc-400 mb-4">Strengths</h3>
+                  <StrengthsSection strengths={strengths} peakMoments={peakMoments} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-zinc-400 mb-4">Opportunities</h3>
+                  <OpportunitiesSection opportunities={opportunities} />
+                </div>
+              </div>
+            </section>
+
+            {/* Character Balance */}
+            {characters.length > 0 && (
+              <>
+                <div className="border-t border-zinc-800"></div>
+                <section>
+                  <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Character Balance</h2>
+                  <CharacterBalanceChart characters={characters} />
+                </section>
+              </>
+            )}
+
+            {/* Punch-Up Workshop */}
+            {punchUps.length > 0 && (
+              <>
+                <div className="border-t border-zinc-800"></div>
+                <section>
+                  <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Punch-Up Workshop</h2>
+                  <PunchUpWorkshop moments={punchUps} />
+                </section>
+              </>
+            )}
+
+            {/* Priority Fix Plan */}
+            {revisionSteps.length > 0 && (
+              <>
+                <div className="border-t border-zinc-800"></div>
+                <section>
+                  <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Revision Plan</h2>
+                  <PriorityFixPlan steps={revisionSteps} />
+                </section>
+              </>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Raw JSON (collapsible) */}
+      {showRaw && (
+        <div className="max-w-7xl mx-auto px-6 pb-12">
+          <div className="border border-zinc-800 rounded-lg overflow-hidden">
+            <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800">
+              <p className="text-xs font-medium text-zinc-400">Raw JSON Response</p>
+            </div>
+            <pre className="bg-zinc-950 text-zinc-400 text-xs p-6 overflow-auto max-h-96 font-mono">
+              {rawJson || 'No data'}
+            </pre>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
