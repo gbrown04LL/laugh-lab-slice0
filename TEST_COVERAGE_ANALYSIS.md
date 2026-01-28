@@ -2,352 +2,341 @@
 
 ## Executive Summary
 
-The Laugh Lab codebase has **~65% test coverage** with 538 total tests across 23 test files. UI components, core library functions, and API routes are well-tested.
+This document analyzes the current test coverage of the Laugh Lab codebase and identifies areas for improvement.
+
+**Current Status:**
+- **Test Files:** 30 files
+- **Passing Tests:** 538 tests
+- **Estimated Coverage:** ~65-70%
+- **Testing Framework:** Vitest 1.0.4 with React Testing Library
 
 | Category | Tested | Total | Coverage |
 |----------|--------|-------|----------|
-| React Components | 8 | 8 | 100% |
-| Library Functions | 8 | 16 | 50% |
 | API Routes | 7 | 7 | **100%** |
-| Page Components | 0 | 3 | 0% |
+| Report Components | 8 | 12 | 67% |
+| Core Library | 13 | 18 | 72% |
+| Pages | 2 | 2 | 100% |
 
 ---
 
-## Current Test Status
+## Current Coverage by Area
 
-**Test Results:** 538 passing, 0 failing
-**Test Files:** 23 test files
-**Total Test Lines:** ~5,500+ lines
+### Well-Tested Areas (High Coverage)
 
-### Recent Improvements (2026-01-25)
+| Area | Files Tested | Notes |
+|------|--------------|-------|
+| API Routes | 7/7 (100%) | All endpoints have comprehensive tests |
+| Core Business Logic | 13/18 (72%) | Types, pipeline, scoring, fingerprinting |
+| Report Components | 8/12 (67%) | Main visualization components tested |
+| Pages | 2/2 (100%) | Home page and report page tested |
 
-1. **Added API Route Tests** - All 7 API routes now have comprehensive tests:
-   - `analyze.route.test.ts` - Main analysis endpoint
-   - `health.route.test.ts` - Health check endpoint
-   - `jobs.route.test.ts` - Job creation
-   - `jobs-id.route.test.ts` - Job retrieval by ID
-   - `jobs-run.route.test.ts` - Job execution pipeline
-   - `reports.route.test.ts` - Report retrieval
-   - `scripts.route.test.ts` - Script submission
+### Untested Areas (Coverage Gaps)
 
-2. **Fixed Mock Configuration Issues** - Resolved 19 failing tests in `usage.test.ts` by properly mocking the `getDb()` function export pattern
-
-### What's Well-Tested
-
-#### 1. React Components (100% coverage)
-All 8 report components have tests:
-- `AnalysisProgress.test.tsx` - Progress indicator states
-- `CharacterBalanceChart.test.tsx` - Chart rendering and data handling
-- `MetricsCards.test.tsx` - Key metrics display
-- `OpportunitiesSection.test.tsx` - Improvement areas display
-- `PunchUpWorkshop.test.tsx` - Interactive punch-up suggestions
-- `ReportPage.test.tsx` - Main report page (comprehensive - 470 lines)
-- `ScoreGauge.test.tsx` - Score visualization
-- `StrengthsSection.test.tsx` - Strengths display
-
-#### 2. Type/Schema Validation (1,012 lines)
-`lib/types.test.ts` comprehensively tests all Zod schemas:
-- CreateScriptSchema, CreateJobSchema
-- ErrorObjectSchema, TierConfigSchema
-- CharacterBalanceSchema, MetricsSchema
-- PromptAOutputSchema, PromptBOutputSchema
-- FinalOutputSchema
-
-#### 3. Core Business Logic
-- `lib/analysis/pipeline.test.ts` (603 lines) - Analysis pipeline execution
-- `lib/scoring/engine.test.ts` - Score calculations, LPM/LPJ metrics
-- `lib/api-errors.test.ts` (354 lines) - Error handling utilities
-- `lib/fingerprint.test.ts` - Script fingerprinting
-- `lib/openai.test.ts` & `lib/llm/openai-client.test.ts` - LLM client
+| Category | Files | Impact |
+|----------|-------|--------|
+| Evidence-Lock Pipeline | `evidenceLockPipeline.ts` | **CRITICAL** - New feature, untested |
+| Schema Validation | `schemas/receipt.ts` | **HIGH** - Complex Zod schemas |
+| Prompt Templates | `stageA_receipts.ts`, `stageB_summary.ts`, `promptA.ts`, `promptB.ts` | **MEDIUM** - LLM prompts |
+| Database Layer | `db/index.ts`, `db/schema.ts` | **MEDIUM** - No integration tests |
+| UI Components | 4 components | **LOW** - Presentational only |
 
 ---
 
-## Priority 1: Critical Gaps (High Impact)
+## Priority 1: Critical Gaps
 
-### 1.1 API Route Tests - **0% Coverage**
+### 1.1 Evidence-Lock Pipeline (`src/lib/analysis/evidenceLockPipeline.ts`)
 
-**Files needing tests:**
-- `src/app/api/analyze/route.ts` (118 lines)
-- `src/app/api/jobs/route.ts`
-- `src/app/api/jobs/[job_id]/route.ts`
-- `src/app/api/jobs/[job_id]/run/route.ts` (519 lines)
-- `src/app/api/reports/[run_id]/route.ts`
-- `src/app/api/scripts/route.ts`
-- `src/app/api/health/route.ts`
+**Why it matters:** This is a recent feature (added in commit 1f57578) that orchestrates the two-stage LLM pipeline with retry logic and fallback handling. Bugs here could cause analysis failures.
 
-**Recommended test scenarios for `analyze/route.ts`:**
+**Lines of code:** 208 lines
+**Complexity:** High (async, retry logic, error handling, validation)
+
+**Recommended Test Cases:**
 
 ```typescript
-// src/__tests__/api/analyze.route.test.ts
-describe('POST /api/analyze', () => {
-  describe('Input Validation', () => {
-    it('should return 400 when script is missing');
-    it('should return 400 when script is too short (<100 chars)');
-    it('should return 400 when script exceeds max length (>150,000 chars)');
-    it('should accept valid script with default format');
-    it('should accept custom format parameter');
+// evidenceLockPipeline.test.ts
+
+describe('runEvidenceLockPipeline', () => {
+  describe('Stage A: Receipt Extraction', () => {
+    it('should extract receipts from valid script and promptA output');
+    it('should build correct stageAInput from promptAOutput');
+    it('should throw error when Stage A validation fails');
+    it('should handle missing jokesByLine gracefully');
+    it('should extract line numbers from location values');
   });
 
-  describe('Usage Limits', () => {
-    it('should return 429 when usage limit exceeded');
-    it('should decrement remaining count on success');
-    it('should use fingerprint header for identification');
-    it('should fall back to IP when fingerprint missing');
+  describe('Stage B: Executive Summary', () => {
+    it('should generate summary citing approved receipts');
+    it('should retry once when validation fails');
+    it('should use fallback after two failed attempts');
+    it('should parse Stage B output correctly');
   });
 
-  describe('Analysis Pipeline', () => {
-    it('should return analysis data on success');
-    it('should return 500 when pipeline fails');
-    it('should save analysis to database');
-    it('should continue when database save fails');
+  describe('Validation and Retry Logic', () => {
+    it('should validate that summary only cites approved receipts');
+    it('should set retryCount to 1 after first retry');
+    it('should set usedFallback to true when using fallback');
+    it('should return complete EvidenceLockResult');
   });
 
   describe('Error Handling', () => {
-    it('should handle JSON parse errors');
-    it('should return proper error format on failure');
+    it('should use fallback on Stage B parsing error');
+    it('should use fallback on OpenAI API error');
+    it('should log appropriate messages at each stage');
   });
 });
 ```
 
-**Recommended test scenarios for `jobs/[job_id]/run/route.ts`:**
+**Mocking Strategy:**
+- Mock `callOpenAI` to return controlled responses
+- Mock `validateSummary` to test retry/fallback paths
+- Use existing LLM mock utilities from `src/__tests__/mocks/llm.ts`
+
+---
+
+### 1.2 Receipt Schema Validation (`src/lib/schemas/receipt.ts`)
+
+**Why it matters:** This file contains complex Zod schemas with regex patterns, custom refinements, and helper functions. Schema validation errors could cause silent failures.
+
+**Lines of code:** 240 lines
+**Complexity:** High (regex patterns, custom refinements, helper functions)
+
+**Recommended Test Cases:**
 
 ```typescript
-// src/__tests__/api/jobs-run.route.test.ts
-describe('POST /api/jobs/[job_id]/run', () => {
-  describe('Validation', () => {
-    it('should return 400 for invalid job_id format');
-    it('should return 404 when job not found');
-    it('should return 404 when script not found for job');
+// receipt.test.ts
+
+describe('Receipt Schemas', () => {
+  describe('ReceiptIdSchema', () => {
+    it('should accept r01 through r15');
+    it('should reject r00, r16, and invalid formats');
   });
 
-  describe('Job State Management', () => {
-    it('should return existing run_id for completed jobs (idempotent)');
-    it('should return 409 when job is already running');
-    it('should return 409 when job previously failed');
-    it('should mark job as running when starting');
+  describe('ReceiptRangeSchema', () => {
+    it('should accept "[Lines 1-10] ->" format');
+    it('should accept various dash types (en-dash, minus, hyphen)');
+    it('should reject malformed ranges');
   });
 
-  describe('Prompt Execution', () => {
-    it('should execute Prompt A successfully');
-    it('should handle Prompt A validation failure');
-    it('should execute Prompt B with Prompt A results');
-    it('should validate Prompt B issue_id references');
-    it('should reject unknown issue_ids from Prompt B');
+  describe('ReceiptSchema', () => {
+    it('should validate complete receipt object');
+    it('should enforce quote <=20 words');
+    it('should enforce note 8-20 words');
+    it('should require at least one tag');
+    it('should validate severity enum');
+    it('should validate confidence 0-1');
   });
 
-  describe('Persistence', () => {
-    it('should persist successful analysis report');
-    it('should persist error report on failure');
-    it('should mark job completed after success');
-    it('should validate final output against schema');
+  describe('StageAOutputSchema', () => {
+    it('should require 10-15 receipts');
+    it('should reject fewer than 10 receipts');
+    it('should reject more than 15 receipts');
   });
-});
-```
 
-### 1.2 Fix Existing Test Failures
+  describe('categorizeReceipt', () => {
+    it('should return "working" for low severity with positive tags');
+    it('should return "opportunity" for high severity');
+    it('should return "opportunity" when no positive tags');
+  });
 
-The `usage.test.ts` file has 19 failing tests due to improper mock configuration:
-
-```typescript
-// Current issue: No "default" export in mock
-// Fix: Update the mock to include default export
-
-vi.mock("./db", async (importOriginal) => {
-  const actual = await importOriginal();
-  return {
-    ...actual,
-    default: mockDb, // Add default export
-  };
+  describe('normalizeRange', () => {
+    it('should normalize all dash types to en-dash');
+    it('should handle multiple dashes in string');
+  });
 });
 ```
 
 ---
 
-## Priority 2: Important Gaps (Medium Impact)
+## Priority 2: Important Gaps
 
-### 2.1 Page Component Tests
+### 2.1 LLM Prompt Templates
 
-**Files needing tests:**
-- `src/app/layout.tsx` - Root layout
-- `src/app/page.tsx` - Home page
-- `src/app/report/[id]/page.tsx` - Report page
+**Files:**
+- `src/lib/prompts/stageA_receipts.ts`
+- `src/lib/prompts/stageB_summary.ts`
+- `src/lib/llm/promptA.ts`
+- `src/lib/llm/promptB.ts`
 
-**Recommended tests:**
+**Why it matters:** Prompt templates affect LLM output quality. Tests ensure prompts are well-formed and include required context.
 
-```typescript
-// src/__tests__/pages/home.test.tsx
-describe('Home Page', () => {
-  it('should render script input form');
-  it('should show character count');
-  it('should disable submit when script too short');
-  it('should handle form submission');
-  it('should show loading state during analysis');
-  it('should navigate to report on success');
-  it('should display error messages');
-});
-
-// src/__tests__/pages/report.test.tsx
-describe('Report Page', () => {
-  it('should fetch and display report data');
-  it('should show loading state while fetching');
-  it('should handle report not found (404)');
-  it('should handle API errors gracefully');
-});
-```
-
-### 2.2 Logger Utility Tests
-
-**File:** `src/lib/logger.ts` (58 lines)
+**Recommended Test Cases:**
 
 ```typescript
-// src/__tests__/lib/logger.test.ts
-describe('Logger', () => {
-  describe('log levels', () => {
-    it('should format info messages correctly');
-    it('should format warn messages correctly');
-    it('should format error messages correctly');
-    it('should only output debug in development');
-  });
+// stageA_receipts.test.ts
+describe('buildStageAPrompt', () => {
+  it('should include script_text in prompt');
+  it('should include jokesByLine when provided');
+  it('should include characters when provided');
+  it('should include metrics_snapshot');
+  it('should produce valid string prompt');
+});
 
-  describe('context formatting', () => {
-    it('should include context as JSON');
-    it('should handle empty context');
-    it('should include all context properties');
-  });
-
-  describe('timer', () => {
-    it('should log start message');
-    it('should log completion with duration');
-    it('should preserve original context');
-  });
+// stageB_summary.test.ts
+describe('buildStageBPrompt', () => {
+  it('should include all receipts');
+  it('should include format type');
+  it('should include metrics');
+  it('should instruct to cite only approved receipts');
 });
 ```
 
-### 2.3 Database Integration Tests
+### 2.2 Database Layer Integration Tests
 
-**Files needing tests:**
-- `src/lib/db/index.ts` - Database initialization
-- `src/lib/db/schema.ts` - Drizzle schema
-- `src/lib/prisma.ts` - Prisma client
+**Files:** `src/lib/db/index.ts`, `src/lib/db/schema.ts`
 
-**Recommendation:** Use a test database (SQLite in-memory or test PostgreSQL) for integration tests.
+**Why it matters:** While unit tests mock the database, integration tests ensure actual DB operations work correctly.
+
+**Recommended Test Cases:**
 
 ```typescript
-// src/__tests__/integration/database.test.ts
+// db.integration.test.ts
 describe('Database Operations', () => {
-  beforeAll(async () => {
-    // Set up test database
+  describe('getDb', () => {
+    it('should throw error when DATABASE_URL is not set');
+    it('should return singleton instance');
+    it('should connect to database successfully');
   });
 
-  afterAll(async () => {
-    // Clean up
-  });
-
-  describe('Scripts', () => {
-    it('should create a new script');
-    it('should retrieve script by id');
-    it('should update script');
-  });
-
-  describe('Jobs', () => {
-    it('should create job linked to script');
-    it('should update job status');
-    it('should query jobs by user');
-  });
-
-  describe('Reports', () => {
-    it('should store analysis report');
-    it('should retrieve report by run_id');
-    it('should store JSONB output correctly');
+  // With test database
+  describe('CRUD Operations', () => {
+    it('should create and retrieve scripts');
+    it('should create and retrieve jobs');
+    it('should create and retrieve reports');
+    it('should handle foreign key constraints');
   });
 });
 ```
 
 ---
 
-## Priority 3: Nice-to-Have Improvements
+## Priority 3: Nice-to-Have
 
-### 3.1 End-to-End Tests
+### 3.1 Untested UI Components
 
-Add Playwright or Cypress for full user flow testing:
+These are presentational components with simple logic:
+
+| Component | File | Lines | Recommended Tests |
+|-----------|------|-------|-------------------|
+| `CoverageSummary` | `CoverageSummary.tsx` | 64 | Render summary sections, test `generateSummaryFromData` helper |
+| `EvidenceChip` | `EvidenceChip.tsx` | 49 | Render variants, test `LocationChips` and `TagChips` helpers |
+| `ExecutiveSummary` | `ExecutiveSummary.tsx` | 48 | Render quick stats, test `getSummaryMessage` for score ranges |
+| `PriorityFixPlan` | `PriorityFixPlan.tsx` | 61 | Render steps, calculate total minutes, handle empty array |
+
+**Example Tests:**
+
+```typescript
+// CoverageSummary.test.tsx
+describe('CoverageSummary', () => {
+  it('should render all three summary paragraphs');
+});
+
+describe('generateSummaryFromData', () => {
+  it('should generate praise from strengths with "exceptional" for score >= 80');
+  it('should generate praise with "strong" for score >= 70');
+  it('should generate constructive from top issue');
+  it('should include retention risk when not low');
+  it('should generate nextSteps from revision plan');
+});
+
+// EvidenceChip.test.tsx
+describe('EvidenceChip', () => {
+  it('should render text content');
+  it('should apply correct styling for all variants');
+});
+
+describe('LocationChips', () => {
+  it('should render scene chip for scene type');
+  it('should render line range chip for line_range type');
+  it('should return null when no location');
+});
+
+// ExecutiveSummary.test.tsx
+describe('ExecutiveSummary', () => {
+  it('should show excellent message for score >= 80');
+  it('should show strong message for score >= 70');
+  it('should show solid message for score >= 50');
+  it('should show attention message for score < 50');
+  it('should display correct counts for stats');
+});
+
+// PriorityFixPlan.test.tsx
+describe('PriorityFixPlan', () => {
+  it('should render all steps with numbers');
+  it('should calculate and display total minutes');
+  it('should return null for empty steps');
+  it('should display individual step timebox');
+});
+```
+
+### 3.2 End-to-End Tests
+
+Add Playwright for full user flow testing:
 
 ```typescript
 // e2e/analysis-flow.spec.ts
 describe('Comedy Script Analysis Flow', () => {
   it('should complete full analysis from input to report');
   it('should handle rate limiting gracefully');
-  it('should persist analysis for return visits');
+  it('should show progress during analysis');
+  it('should display complete report with all sections');
 });
 ```
 
-### 3.2 LLM Prompt Template Tests
+---
 
-**Files:** `src/lib/llm/promptA.ts`, `src/lib/llm/promptB.ts`
+## Recommended Implementation Order
 
-Test that prompts:
-- Include required sections
-- Have proper system instructions
-- Don't exceed token limits
+| Priority | Area | Estimated Effort | Impact |
+|----------|------|------------------|--------|
+| **P1** | Evidence-Lock Pipeline | 4-6 hours | High |
+| **P1** | Receipt Schema | 2-3 hours | High |
+| **P2** | Prompt Templates | 2-3 hours | Medium |
+| **P2** | Database Integration | 4-6 hours | Medium |
+| **P3** | UI Components (4) | 2-4 hours | Low |
+| **P3** | E2E Tests | 8+ hours | Medium |
 
-### 3.3 Performance/Load Tests
-
-- Test scoring engine with large scripts
-- Test API endpoints under load
-- Memory usage during analysis
+**Total estimated effort to reach 90%+ coverage:** ~25-30 hours
 
 ---
 
-## Implementation Roadmap
+## Testing Infrastructure
 
-### Phase 1: Fix & Stabilize (Immediate)
-1. Fix mock configuration in `usage.test.ts` (19 failing tests)
-2. Review and update test setup file
+### Current Setup (Strong Foundation)
+- Vitest 1.0.4 with v8 coverage provider
+- React Testing Library 14.0.0
+- Good mock utilities in `src/__tests__/mocks/llm.ts`
+- Test fixtures for LLM outputs in `src/__tests__/fixtures/`
+- Global test setup in `src/__tests__/setup.ts`
 
-### Phase 2: API Route Coverage (Week 1-2)
-1. Create test utilities for mocking Next.js request/response
-2. Add tests for `analyze/route.ts` (highest traffic endpoint)
-3. Add tests for `jobs/[job_id]/run/route.ts` (most complex endpoint)
-4. Add tests for remaining 5 routes
+### Available Test Scripts
+```bash
+npm test              # Run tests in watch mode
+npm run test:run      # Single run (CI mode)
+npm run test:coverage # With coverage report
+npm run test:ui       # Interactive UI dashboard
+```
 
-### Phase 3: Integration Testing (Week 2-3)
-1. Set up test database infrastructure
-2. Add database operation tests
-3. Add page component tests
+### Recommendations for Infrastructure
 
-### Phase 4: E2E & Polish (Week 3-4)
-1. Set up Playwright
-2. Add critical path E2E tests
-3. Add logger and utility tests
-4. Achieve 80%+ coverage target
-
----
-
-## Testing Best Practices Observed
-
-### Strengths
-- Comprehensive schema validation testing
-- Good component isolation with mock data
-- Proper use of fixtures for LLM responses
-- Testing both success and error paths
-
-### Areas to Improve
-- Need to mock external dependencies consistently
-- Add integration tests for database operations
-- Test API routes with proper Next.js context mocking
-- Add E2E tests for critical user flows
+1. **Add snapshot tests** for prompt templates to catch unintended changes
+2. **Set up CI coverage thresholds** to prevent regression (target: 80%)
+3. **Add test database** for integration tests (use separate DATABASE_URL)
+4. **Consider Playwright** for E2E tests of critical user flows
 
 ---
 
-## Metrics Target
+## Summary
 
-| Metric | Current | Target |
-|--------|---------|--------|
-| Overall Coverage | ~42% | 80% |
-| API Routes | 0% | 100% |
-| Library Functions | 50% | 90% |
-| Integration Tests | 0 | 10+ |
-| E2E Tests | 0 | 5+ |
+The codebase has a solid testing foundation with 538 passing tests and 100% API route coverage. The main gaps are:
+
+1. **Critical:** Evidence-Lock Pipeline (new feature, high complexity)
+2. **Critical:** Receipt Schema validation (complex Zod schemas)
+3. **Important:** LLM prompt templates and database integration
+4. **Nice-to-have:** 4 presentational UI components
+
+Addressing Priority 1 items would significantly improve reliability and catch potential regressions in the critical analysis path.
 
 ---
 
-*Generated: 2026-01-25*
+*Updated: 2026-01-28*
