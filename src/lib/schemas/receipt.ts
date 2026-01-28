@@ -157,6 +157,8 @@ export const ValidationFailureReason = z.enum([
   "missing_receipt_p3",
   "unapproved_receipt_range",
   "formatting_violation",
+  "word_count",
+  "missing_closing_line",
 ]);
 
 export type ValidationFailureReasonValue = z.infer<

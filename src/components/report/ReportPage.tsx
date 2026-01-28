@@ -11,6 +11,11 @@ import { PunchUpWorkshop, PunchUpMoment } from './PunchUpWorkshop';
 import { CharacterBalanceChart, CharacterBalanceItem } from './CharacterBalanceChart';
 import { PriorityFixPlan, RevisionStep } from './PriorityFixPlan';
 
+/**
+ * Laugh Lab closing line constant
+ */
+const LAUGH_LAB_CLOSING_LINE = "Ready to analyze some punchline gaps?";
+
 interface ReportPageProps {
   data?: any;
   scriptTitle?: string;
@@ -65,29 +70,44 @@ export default function ReportPage({ data, scriptTitle, isAnalyzing = false, sta
   const revisionSteps: RevisionStep[] = output?.prompt_b?.sections?.how_to_revise_this_efficiently?.revision_plan?.steps ?? [];
 
   // Use Evidence-Lock summary if available, otherwise generate from existing data
-  const summary = useMemo(() => {
+  const { summary, hasClosingLine, rawSummary } = useMemo(() => {
     const evidenceLockSummary: string | undefined =
       typeof output?.evidence_lock?.summary === 'string' ? output.evidence_lock.summary : undefined;
-    
+
     if (evidenceLockSummary) {
-      // Split Evidence-Lock summary into 3 paragraphs
-      const paragraphs = evidenceLockSummary.split('\n\n').filter((p) => p.trim().length > 0);
+      // Check for closing line
+      const hasClosing = evidenceLockSummary.includes(LAUGH_LAB_CLOSING_LINE);
+
+      // Split Evidence-Lock summary into paragraphs, excluding closing line
+      const paragraphs = evidenceLockSummary
+        .split('\n\n')
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0 && p !== LAUGH_LAB_CLOSING_LINE);
+
       return {
-        praise: paragraphs[0] || '',
-        constructive: paragraphs[1] || '',
-        nextSteps: paragraphs[2] || '',
+        summary: {
+          praise: paragraphs[0] || '',
+          constructive: paragraphs[1] || '',
+          nextSteps: paragraphs[2] || '',
+        },
+        hasClosingLine: hasClosing,
+        rawSummary: evidenceLockSummary,
       };
     }
-    
+
     // Fallback to legacy summary generation
-    return generateSummaryFromData({
-      score: overallScore,
-      lpm,
-      strengths,
-      issues: opportunities,
-      revisionSteps,
-      retentionRisk,
-    });
+    return {
+      summary: generateSummaryFromData({
+        score: overallScore,
+        lpm,
+        strengths,
+        issues: opportunities,
+        revisionSteps,
+        retentionRisk,
+      }),
+      hasClosingLine: false,
+      rawSummary: undefined,
+    };
   }, [output, overallScore, lpm, strengths, opportunities, revisionSteps, retentionRisk]);
 
   // Build benchmarks for ScoreHero
@@ -230,12 +250,17 @@ export default function ReportPage({ data, scriptTitle, isAnalyzing = false, sta
           <div className="space-y-12">
             {/* Coverage Summary - Hero Section */}
             <section>
-              <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Executive Summary</h2>
+              <h2 className="text-xs uppercase tracking-wider text-zinc-500 mb-6">Script Coverage</h2>
               <div className="space-y-6 text-base leading-relaxed text-zinc-300">
-                <p>{summary.praise}</p>
-                <p>{summary.constructive}</p>
-                <p>{summary.nextSteps}</p>
+                {summary.praise && <p>{summary.praise}</p>}
+                {summary.constructive && <p>{summary.constructive}</p>}
+                {summary.nextSteps && <p>{summary.nextSteps}</p>}
               </div>
+              {hasClosingLine && (
+                <p className="mt-8 text-sm font-medium text-violet-400">
+                  {LAUGH_LAB_CLOSING_LINE}
+                </p>
+              )}
             </section>
 
             {/* Divider */}
