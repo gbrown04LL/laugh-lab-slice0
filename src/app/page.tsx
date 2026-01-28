@@ -3,28 +3,13 @@
 import React, { useState } from 'react';
 import ReportPage from '@/components/report/ReportPage';
 
-const steps = [
-  { id: 'script', label: 'Submit Script', icon: '1' },
-  { id: 'job', label: 'Create Job', icon: '2' },
-  { id: 'run', label: 'Run Analysis', icon: '3' },
-  { id: 'report', label: 'View Report', icon: '4' },
-] as const;
-
-type StepId = typeof steps[number]['id'];
-
 export default function Home() {
   const [scriptText, setScriptText] = useState('');
-  const [scriptId, setScriptId] = useState('');
-  const [jobId, setJobId] = useState('');
-  const [runId, setRunId] = useState('');
   const [report, setReport] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [step, setStep] = useState<StepId>('script');
 
-  const currentStepIndex = steps.findIndex(s => s.id === step);
-
-  const handleSubmitScript = async () => {
+  const handleAnalyzeScript = async () => {
     if (!scriptText.trim()) {
       setError('Please enter some script text');
       return;
@@ -34,91 +19,56 @@ export default function Home() {
     setError('');
 
     try {
-      const response = await fetch('/api/scripts', {
+      // Step 1: Submit script
+      const scriptResponse = await fetch('/api/scripts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: scriptText }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!scriptResponse.ok) {
+        const errorData = await scriptResponse.json();
         throw new Error(errorData.errors?.[0]?.message || 'Failed to submit script');
       }
 
-      const data = await response.json();
-      setScriptId(data.id);
-      setStep('job');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const scriptData = await scriptResponse.json();
 
-  const handleCreateJob = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('/api/jobs', {
+      // Step 2: Create job
+      const jobResponse = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ script_id: scriptId }),
+        body: JSON.stringify({ script_id: scriptData.id }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!jobResponse.ok) {
+        const errorData = await jobResponse.json();
         throw new Error(errorData.errors?.[0]?.message || 'Failed to create job');
       }
 
-      const data = await response.json();
-      setJobId(data.id);
-      setStep('run');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const jobData = await jobResponse.json();
 
-  const handleRunAnalysis = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch(`/api/jobs/${jobId}/run`, {
+      // Step 3: Run analysis
+      const runResponse = await fetch(`/api/jobs/${jobData.id}/run`, {
         method: 'POST',
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!runResponse.ok) {
+        const errorData = await runResponse.json();
         throw new Error(errorData.errors?.[0]?.message || 'Failed to run analysis');
       }
 
-      const data = await response.json();
-      setRunId(data.run_id);
-      setStep('report');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      const runData = await runResponse.json();
 
-  const handleGetReport = async () => {
-    setLoading(true);
-    setError('');
+      // Step 4: Get report
+      const reportResponse = await fetch(`/api/reports/${runData.run_id}`);
 
-    try {
-      const response = await fetch(`/api/reports/${runId}`);
-
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!reportResponse.ok) {
+        const errorData = await reportResponse.json();
         throw new Error(errorData.errors?.[0]?.message || 'Failed to get report');
       }
 
-      const data = await response.json();
-      setReport(data);
+      const reportData = await reportResponse.json();
+      setReport(reportData);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -128,33 +78,8 @@ export default function Home() {
 
   const handleReset = () => {
     setScriptText('');
-    setScriptId('');
-    setJobId('');
-    setRunId('');
     setReport(null);
     setError('');
-    setStep('script');
-  };
-
-  const handleTestHealth = async () => {
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('/api/health');
-      const data = await response.json();
-
-      if (data.ok) {
-        alert('Health check passed! Database is connected.');
-      } else {
-        alert('Health check failed. See console for details.');
-        console.error('Health check response:', data);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
   };
 
   return (
@@ -171,56 +96,6 @@ export default function Home() {
           <p className="text-gray-500 text-lg">
             AI-powered comedy script analysis
           </p>
-          <button
-            onClick={handleTestHealth}
-            disabled={loading}
-            className="mt-4 btn-success"
-          >
-            {loading ? 'Checking...' : 'Test Health Check'}
-          </button>
-        </div>
-
-        {/* Progress Steps */}
-        <div className="card p-6 mb-6">
-          <div className="flex items-center justify-between">
-            {steps.map((s, index) => (
-              <React.Fragment key={s.id}>
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`
-                      w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300
-                      ${index < currentStepIndex
-                        ? 'bg-gradient-to-br from-emerald-400 to-green-500 text-white shadow-lg shadow-green-500/30'
-                        : index === currentStepIndex
-                          ? 'bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/30 ring-4 ring-violet-100'
-                          : 'bg-gray-100 text-gray-400'
-                      }
-                    `}
-                  >
-                    {index < currentStepIndex ? (
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      s.icon
-                    )}
-                  </div>
-                  <span className={`
-                    mt-2 text-xs font-medium transition-colors duration-300
-                    ${index <= currentStepIndex ? 'text-gray-900' : 'text-gray-400'}
-                  `}>
-                    {s.label}
-                  </span>
-                </div>
-                {index < steps.length - 1 && (
-                  <div className={`
-                    flex-1 h-1 mx-2 rounded-full transition-colors duration-300
-                    ${index < currentStepIndex ? 'bg-gradient-to-r from-emerald-400 to-green-500' : 'bg-gray-100'}
-                  `} />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
         </div>
 
         {/* Error Alert */}
@@ -238,16 +113,16 @@ export default function Home() {
           </div>
         )}
 
-        {/* Step Content */}
+        {/* Main Content */}
         <div className="card p-8 animate-fade-in">
-          {/* Step 1: Submit Script */}
-          {step === 'script' && (
+          {/* Script Input */}
+          {!report && (
             <div className="animate-slide-up">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Submit Your Script
+                Analyze Your Script
               </h2>
               <p className="text-gray-500 mb-6">
-                Paste your comedy script below to begin the analysis.
+                Paste your comedy script below to get AI-powered analysis.
               </p>
               <textarea
                 value={scriptText}
@@ -258,13 +133,14 @@ Jerry and George are sitting on the couch...
 
 JERRY: So let me get this straight..."
                 className="w-full h-64 p-4 rounded-xl border-2 border-gray-200 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/10 outline-none transition-all duration-200 font-mono text-sm resize-none"
+                disabled={loading}
               />
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-sm text-gray-400">
                   {scriptText.length} characters
                 </span>
                 <button
-                  onClick={handleSubmitScript}
+                  onClick={handleAnalyzeScript}
                   disabled={loading || !scriptText.trim()}
                   className="btn-primary"
                 >
@@ -274,131 +150,11 @@ JERRY: So let me get this straight..."
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
-                      Submitting...
+                      Analyzing...
                     </span>
-                  ) : 'Submit Script'}
+                  ) : 'Analyze Script'}
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* Step 2: Create Job */}
-          {step === 'job' && (
-            <div className="animate-slide-up">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Create Analysis Job
-              </h2>
-              <p className="text-gray-500 mb-6">
-                Your script has been submitted. Create a job to analyze it.
-              </p>
-              <div className="p-4 rounded-xl bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-100 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-violet-600 uppercase tracking-wider">Script ID</p>
-                    <p className="font-mono text-sm text-gray-900">{scriptId}</p>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={handleCreateJob}
-                disabled={loading}
-                className="btn-primary"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Creating Job...
-                  </span>
-                ) : 'Create Job'}
-              </button>
-            </div>
-          )}
-
-          {/* Step 3: Run Analysis */}
-          {step === 'run' && (
-            <div className="animate-slide-up">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Run Analysis
-              </h2>
-              <p className="text-gray-500 mb-6">
-                Your job is ready. Start the AI-powered comedy analysis.
-              </p>
-              <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-indigo-600 uppercase tracking-wider">Job ID</p>
-                    <p className="font-mono text-sm text-gray-900">{jobId}</p>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={handleRunAnalysis}
-                disabled={loading}
-                className="btn-primary"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Running Analysis...
-                  </span>
-                ) : 'Run Analysis'}
-              </button>
-            </div>
-          )}
-
-          {/* Step 4: View Report */}
-          {step === 'report' && !report && (
-            <div className="animate-slide-up">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                View Report
-              </h2>
-              <p className="text-gray-500 mb-6">
-                Analysis complete! Retrieve your comedy script report.
-              </p>
-              <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-100 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-purple-600 uppercase tracking-wider">Run ID</p>
-                    <p className="font-mono text-sm text-gray-900">{runId}</p>
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={handleGetReport}
-                disabled={loading}
-                className="btn-primary"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Loading Report...
-                  </span>
-                ) : 'Get Report'}
-              </button>
             </div>
           )}
 
@@ -419,38 +175,6 @@ JERRY: So let me get this straight..."
               </div>
             </div>
           )}
-        </div>
-
-        {/* API Documentation */}
-        <div className="card p-6 mt-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-              <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-            <h2 className="text-lg font-bold text-gray-900">API Documentation</h2>
-          </div>
-          <div className="grid gap-2">
-            {[
-              { method: 'GET', path: '/api/health', desc: 'Database connectivity check' },
-              { method: 'POST', path: '/api/scripts', desc: 'Submit script text' },
-              { method: 'POST', path: '/api/jobs', desc: 'Create analysis job' },
-              { method: 'POST', path: '/api/jobs/[job_id]/run', desc: 'Run Slice-0 analysis' },
-              { method: 'GET', path: '/api/reports/[run_id]', desc: 'Retrieve analysis report' },
-            ].map((endpoint, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <span className={`
-                  px-2 py-1 text-xs font-bold rounded
-                  ${endpoint.method === 'GET' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}
-                `}>
-                  {endpoint.method}
-                </span>
-                <code className="text-sm font-mono text-gray-700">{endpoint.path}</code>
-                <span className="text-sm text-gray-500 ml-auto">{endpoint.desc}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </main>
