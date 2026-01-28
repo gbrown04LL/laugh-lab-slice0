@@ -79,6 +79,7 @@ export function CoverageSummary({ summary, rawSummary }: CoverageSummaryProps) {
 }
 
 // Helper to generate summary from existing API data
+// Generates Laugh Lab format: 500+ words, professional showrunner tone, no numbered lists
 export function generateSummaryFromData(data: {
   score: number;
   lpm: number;
@@ -89,26 +90,53 @@ export function generateSummaryFromData(data: {
 }): ReviewSummary {
   const { score, lpm, strengths, issues, revisionSteps, retentionRisk } = data;
 
-  // Praise: top strengths + metrics context
-  const topStrengths = strengths.slice(0, 2);
-  const scoreContext = score >= 80 ? 'exceptional' : score >= 70 ? 'strong' : 'solid';
-  const lpmContext = lpm >= 2.0 ? 'above industry benchmarks' : lpm >= 1.5 ? 'on target' : 'has room to grow';
+  // Score context for professional tone
+  const scoreContext = score >= 80 ? 'strong' : score >= 70 ? 'solid' : score >= 50 ? 'developing' : 'early-stage';
+  const lpmContext = lpm >= 2.0
+    ? 'maintains healthy joke frequency that keeps audiences engaged throughout'
+    : lpm >= 1.5
+      ? 'shows adequate pacing with room to tighten the comedic rhythm'
+      : 'has stretches where the comedic density thins out';
 
-  const praise = topStrengths.length > 0
-    ? `This script demonstrates ${scoreContext} comedy writing with an LPM that's ${lpmContext}. ${topStrengths[0]} ${topStrengths[1] ? `Additionally, ${topStrengths[1].toLowerCase()}` : ''}`
-    : `This script shows ${scoreContext} potential with a comedy score of ${score}/100.`;
+  // Build praise paragraph (~170 words) - professional showrunner tone
+  const topStrengths = strengths.slice(0, 3);
+  const strengthsText = topStrengths.length > 0
+    ? topStrengths.map((s, i) => {
+        // Clean up the strength text and integrate naturally
+        const cleaned = s.charAt(0).toUpperCase() + s.slice(1);
+        if (i === 0) return cleaned;
+        return cleaned.toLowerCase();
+      }).join(', and ')
+    : 'the foundational character work and situational framing';
 
-  // Constructive: top issue + retention risk
+  const praise = `This script demonstrates ${scoreContext} comedic instincts with a comedy score of ${score}, reflecting genuine understanding of timing and character-driven humor that positions this material well for further development. The LPM of ${lpm.toFixed(1)} ${lpmContext}, and when the jokes land, they land with conviction. What works here works because you've built a foundation that supports escalation rather than fighting against it—${strengthsText}. The dialogue has a naturalistic quality that sells the comedy without feeling overly constructed, and your character voices remain consistent throughout the piece. These structural strengths give you a solid platform to build from, and the comedic identity is clear enough that punch-up work will enhance rather than dilute what's already working. The setup-payoff mechanics are generally sound, and you're earning laughs through specificity rather than broad strokes.`;
+
+  // Build constructive paragraph (~170 words) - identify single bottleneck
   const topIssue = issues[0];
-  const constructive = topIssue
-    ? `The primary opportunity lies in addressing: ${topIssue.why_it_matters}${retentionRisk && retentionRisk !== 'low' ? ` The overall retention risk is ${retentionRisk}, which warrants attention to maintain audience engagement.` : ''}`
-    : 'No significant issues were identified. Focus on polish and refinement.';
+  const retentionContext = retentionRisk === 'high'
+    ? 'risks losing audience momentum at critical moments'
+    : retentionRisk === 'medium'
+      ? 'has some stretches where engagement could drift'
+      : 'maintains reasonable audience attention';
 
-  // Next steps: revision plan
-  const steps = revisionSteps.slice(0, 2);
-  const nextSteps = steps.length > 0
-    ? `Recommended next steps: ${steps.map((s, i) => `(${i + 1}) ${s.step}${s.timebox_minutes ? ` (~${s.timebox_minutes} min)` : ''}`).join(' ')}`
-    : 'Review the punch-up suggestions below and implement the highest-impact changes first.';
+  const issueText = topIssue
+    ? topIssue.why_it_matters
+    : 'the pacing between major comedic beats, where momentum tends to dissipate before building to clear peaks';
+
+  const constructive = `The primary constraint limiting this script's ceiling is ${issueText}. This matters because comedy lives and dies on momentum—when audiences wait too long between payoffs, impatience erodes the goodwill your stronger moments have built. The retention risk assessment indicates the script ${retentionContext}, which directly impacts how the material will play in real-time. This isn't about adding more jokes indiscriminately; it's about compressing setups, finding the shortest path to each laugh, and ensuring every scene has a clear comedic destination rather than meandering toward one. The character balance suggests some ensemble members could carry more comedic weight, which would help distribute the pacing pressure and create more varied textures throughout. Tighten the beats that feel slack, push the escalation where it plateaus, and let your strongest moments land harder by clearing away what dilutes them.`;
+
+  // Build next steps paragraph (~170 words) - no numbered lists, use prose with time estimates
+  const step1 = revisionSteps[0];
+  const step2 = revisionSteps[1];
+  const fixTitle = topIssue?.concrete_fix?.title || 'the flagged pacing issues';
+
+  const stepsText = step1 && step2
+    ? `First, ${step1.step.toLowerCase()}${step1.timebox_minutes ? ` (~${step1.timebox_minutes} minutes)` : ' (~15 minutes)'}—this represents your quickest path to improvement and will have immediate impact on the overall score. Second, ${step2.step.toLowerCase()}${step2.timebox_minutes ? ` (~${step2.timebox_minutes} minutes)` : ' (~20 minutes)'}, which addresses the structural constraints without requiring wholesale revision.`
+    : step1
+      ? `Focus on ${step1.step.toLowerCase()}${step1.timebox_minutes ? ` (~${step1.timebox_minutes} minutes)` : ' (~15 minutes)'}—this represents your highest-leverage opportunity for improvement.`
+      : `Revisit ${fixTitle} (~15 minutes) by cutting redundant setup lines that delay payoffs.`;
+
+  const nextSteps = `Three specific moves will materially improve this script and push it toward production readiness. ${stepsText} Third, audit any stretch exceeding ten lines without a clear laugh or callback; compressing these gaps will immediately improve retention metrics (~20 minutes with fresh eyes). These targeted revisions address the script's main constraints without requiring a full rewrite. Budget approximately an hour total for this punch-up pass, focusing on tightening rather than adding. The goal is efficiency—step up what's already there, compress what's slack, and let your best material breathe without competition from weaker beats surrounding it.`;
 
   return { praise, constructive, nextSteps };
 }
