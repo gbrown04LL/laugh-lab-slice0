@@ -2,6 +2,11 @@
 
 import React from 'react';
 
+/**
+ * Laugh Lab closing line constant
+ */
+const LAUGH_LAB_CLOSING_LINE = "Ready to analyze some punchline gaps?";
+
 export interface ReviewSummary {
   praise: string;
   constructive: string;
@@ -10,20 +15,65 @@ export interface ReviewSummary {
 
 interface CoverageSummaryProps {
   summary: ReviewSummary;
+  /** Optional: raw summary text from evidence-lock pipeline */
+  rawSummary?: string;
 }
 
-export function CoverageSummary({ summary }: CoverageSummaryProps) {
+/**
+ * Parse raw summary text into structured ReviewSummary
+ * Handles the Laugh Lab format: 3 paragraphs + closing line
+ */
+function parseRawSummary(rawSummary: string): ReviewSummary {
+  const paragraphs = rawSummary
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0 && p !== LAUGH_LAB_CLOSING_LINE);
+
+  return {
+    praise: paragraphs[0] || '',
+    constructive: paragraphs[1] || '',
+    nextSteps: paragraphs[2] || '',
+  };
+}
+
+/**
+ * Check if summary contains the Laugh Lab closing line
+ */
+function hasClosingLine(summary: ReviewSummary | string): boolean {
+  if (typeof summary === 'string') {
+    return summary.includes(LAUGH_LAB_CLOSING_LINE);
+  }
+  return (
+    summary.praise.includes(LAUGH_LAB_CLOSING_LINE) ||
+    summary.constructive.includes(LAUGH_LAB_CLOSING_LINE) ||
+    summary.nextSteps.includes(LAUGH_LAB_CLOSING_LINE)
+  );
+}
+
+export function CoverageSummary({ summary, rawSummary }: CoverageSummaryProps) {
+  // Use raw summary if provided, otherwise use structured summary
+  const parsedSummary = rawSummary ? parseRawSummary(rawSummary) : summary;
+  const showClosingLine = rawSummary
+    ? rawSummary.includes(LAUGH_LAB_CLOSING_LINE)
+    : hasClosingLine(summary);
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
       <h2 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-        Coverage Summary
+        Script Coverage
       </h2>
 
       <div className="mt-4 space-y-4 text-[15px] leading-7 text-slate-700 dark:text-slate-200">
-        <p>{summary.praise}</p>
-        <p>{summary.constructive}</p>
-        <p>{summary.nextSteps}</p>
+        {parsedSummary.praise && <p>{parsedSummary.praise}</p>}
+        {parsedSummary.constructive && <p>{parsedSummary.constructive}</p>}
+        {parsedSummary.nextSteps && <p>{parsedSummary.nextSteps}</p>}
       </div>
+
+      {showClosingLine && (
+        <p className="mt-6 text-sm font-medium text-violet-600 dark:text-violet-400">
+          {LAUGH_LAB_CLOSING_LINE}
+        </p>
+      )}
     </section>
   );
 }
