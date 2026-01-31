@@ -381,6 +381,87 @@ When calling the API directly, you get structured JSON:
 
 ---
 
+## 12. Prompt B Output Structure (Canonical)
+
+Prompt B returns the **writer-facing analysis and punch-up payload**.
+This output is opinionated, action-oriented, and designed to drive revision decisions — not explanation.
+
+The structure below defines the required shape of the `prompt_b` object.
+
+```yaml
+prompt_b:
+  verdict:
+    overall_assessment: string
+    comedic_identity: string
+    confidence_level: low | medium | high
+
+  strengths_to_protect:
+    - strength_id: string
+      description: string
+      where_it_shows:
+        - start_line: number
+          end_line: number
+      why_changing_it_would_hurt: string
+
+  priority_fixes:
+    - issue_id: string
+      category: density | clarity | escalation | character_voice | predictability | callback | stakes
+      severity: low | medium | high | critical
+      affected_lines:
+        start_line: number
+        end_line: number
+      diagnosis: string
+      rewrite_goal: string
+      success_criteria: string
+
+  punch_up_modules:
+    - module_id: string
+      linked_issue_id: string
+      moment:
+        start_line: number
+        end_line: number
+        what_its_doing_now: string
+        why_it_stalls: string
+
+      rewrite_ladder:
+        base_fix:
+          device: string
+          text: string
+          why_it_works: string
+
+        stronger:
+          device: string
+          text: string
+          why_it_works: string
+
+        bold:
+          device: string
+          text: string
+          risk: string
+          why_it_works: string
+
+      optional_extensions:
+        button:
+          text: string
+          when_to_use: string
+
+        callback_hook:
+          setup_reference: string
+          payoff_idea: string
+
+  revision_plan:
+    recommended_mode: time_boxed | multi_pass
+    passes:
+      - pass_name: string
+        duration_minutes: number
+        focus: string
+        apply_to_issue_ids:
+          - string
+        stop_when: string
+```
+
+---
+
 ## Summary
 
 When you submit a comedy script to Laugh Lab, you get:
